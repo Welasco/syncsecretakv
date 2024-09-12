@@ -19,3 +19,6 @@ kubebuilder init --owner "welasco" --domain "syncsecretakv.io"
 
 # Create API
 kubebuilder create api --group core --version v1 --kind Secret
+
+# Create Custom API for a Custom Resource
+kubebuilder create api --group api --version v1alpha1 --kind SyncSecretAKV

@@ -58,6 +58,30 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if secret.Namespace == "vws" {
 
 		fmt.Println("Secret Name: ", secret.Name, "Secrete Type: ", secret.Type, "Namespace Name: ", secret.Namespace)
+
+		// check if a secret has a specific label defined
+		if secret.Labels["secret-type"] == "my-secret " {
+			fmt.Println("Secret has a label secret-type: my-secret")
+		}
+
+		// print all labels from a secret
+		for key, value := range secret.Labels {
+			fmt.Println("Label Key: ", key, "\n", "Label Value: ", value)
+		}
+
+		// Get the secret data
+		for key, value := range secret.Data {
+			fmt.Println("Key: ", key, "\n", "Value: ", string(value))
+		}
+
+		// Print all annotations from a secret
+		for key, value := range secret.Annotations {
+			fmt.Println("Annotation Key: ", key, "\n", "Annotation Value: ", value)
+		}
+
+		// Print Resource Version of a secret
+		fmt.Println("Resource Version: ", secret.ResourceVersion)
+
 	}
 
 	return ctrl.Result{}, nil
