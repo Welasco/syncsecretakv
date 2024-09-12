@@ -35,7 +35,9 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/welasco/syncsecretakv/internal/controller"
+	apiv1alpha1 "github.com/welasco/syncsecretakv/api/api/v1alpha1"
+	apicontroller "github.com/welasco/syncsecretakv/internal/controller/api"
+	corecontroller "github.com/welasco/syncsecretakv/internal/controller/core"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -47,6 +49,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
+	utilruntime.Must(apiv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -142,11 +145,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.SecretReconciler{
+	if err = (&corecontroller.SecretReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Secret")
+		os.Exit(1)
+	}
+	if err = (&apicontroller.SyncSecretAKVReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "SyncSecretAKV")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

@@ -5,6 +5,7 @@
 domain: syncsecretakv.io
 layout:
 - go.kubebuilder.io/v4
+multigroup: true
 projectName: syncsecretakv
 repo: github.com/welasco/syncsecretakv
 resources:
@@ -13,4 +14,13 @@ resources:
   kind: Secret
   path: k8s.io/api/core/v1
   version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: syncsecretakv.io
+  group: api
+  kind: SyncSecretAKV
+  path: github.com/welasco/syncsecretakv/api/api/v1alpha1
+  version: v1alpha1
 version: "3"

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package core
 
 import (
 	"context"
@@ -49,6 +49,7 @@ type SecretReconciler struct {
 func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
+	// TODO(user): your logic here
 	// TODO(user): your logic here
 	secret := &corev1.Secret{}
 	if err := r.Get(ctx, req.NamespacedName, secret); err != nil {

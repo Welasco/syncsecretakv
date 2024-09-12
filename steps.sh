@@ -16,10 +16,12 @@ go mod init github.com/welasco/syncsecretakv
 
 # Create Kubebuilder project
 kubebuilder init --owner "welasco" --domain "syncsecretakv.io"
+# Since this project is watching for changes in a secret and keep tracking using a custom resource it was required to enable multigrou support
+kubebuilder edit --multigroup=true
 
 # Create API
 kubebuilder create api --group core --version v1 --kind Secret
+# OBS We don't want to create a resource when prompted because a Secret is already part of Kubernetes we only need a controller
 
 # Create Custom API for a Custom Resource
-kubebuilder edit --multigroup=true
 kubebuilder create api --group api --version v1alpha1 --kind SyncSecretAKV
