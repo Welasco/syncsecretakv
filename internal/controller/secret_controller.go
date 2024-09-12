@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,6 +50,15 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	_ = log.FromContext(ctx)
 
 	// TODO(user): your logic here
+	secret := &corev1.Secret{}
+	if err := r.Get(ctx, req.NamespacedName, secret); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if secret.Namespace == "vws" {
+
+		fmt.Println("Secret Name: ", secret.Name, "Secrete Type: ", secret.Type, "Namespace Name: ", secret.Namespace)
+	}
 
 	return ctrl.Result{}, nil
 }
