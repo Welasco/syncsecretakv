@@ -11,3 +11,11 @@ rm go1.23.1.linux-amd64.tar.gz
 curl -L -o kubebuilder "https://go.kubebuilder.io/dl/latest/$(go env GOOS)/$(go env GOARCH)"
 chmod +x kubebuilder && sudo mv kubebuilder /usr/local/bin/
 
+# Create go Project
+go mod init github.com/welasco/syncsecretakv
+
+# Create Kubebuilder project
+kubebuilder init --owner "welasco" --domain "syncsecretakv.io"
+
+# Create API
+kubebuilder create api --group core --version v1 --kind Secret
