@@ -1,4 +1,5 @@
 ## Append samples of your project ##
 resources:
 - api_v1alpha1_syncsecretakv.yaml
+- api_v1alpha1_config.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

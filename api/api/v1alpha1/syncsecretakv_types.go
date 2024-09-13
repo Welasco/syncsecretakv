@@ -29,13 +29,19 @@ type SyncSecretAKVSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of SyncSecretAKV. Edit syncsecretakv_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Foo string `json:"foo,omitempty"`
+
+	VaultName             string `json:"vaultName"`
+	SecretName            string `json:"secretName"`
+	SecretResourceVersion string `json:"secretResourceVersion"`
 }
 
 // SyncSecretAKVStatus defines the observed state of SyncSecretAKV
 type SyncSecretAKVStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	SyncStatus        string `json:"syncStatus"`
+	SyncStatusMessage string `json:"syncStatusMessage"`
 }
 
 // +kubebuilder:object:root=true

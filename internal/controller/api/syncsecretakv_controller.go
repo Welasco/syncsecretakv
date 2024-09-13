@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,7 +50,15 @@ type SyncSecretAKVReconciler struct {
 func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
+	log.Log.Info("Reconciling SyncSecretAKV: " + req.NamespacedName.Name)
+
 	// TODO(user): your logic here
+	syncSecretAKV := &apiv1alpha1.SyncSecretAKV{}
+	if err := r.Get(ctx, req.NamespacedName, syncSecretAKV); err != nil && errors.IsNotFound(err) {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	log.Log.Info("SyncSecretAKV detected (add, update, delete): " + syncSecretAKV.Name)
 
 	return ctrl.Result{}, nil
 }

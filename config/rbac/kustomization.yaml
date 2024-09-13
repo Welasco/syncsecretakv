@@ -22,6 +22,8 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the Project itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- api_config_editor_role.yaml
+- api_config_viewer_role.yaml
 - api_syncsecretakv_editor_role.yaml
 - api_syncsecretakv_viewer_role.yaml
 

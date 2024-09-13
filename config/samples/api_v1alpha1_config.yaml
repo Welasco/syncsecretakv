@@ -1,0 +1,9 @@
+apiVersion: api.syncsecretakv.io/v1alpha1
+kind: Config
+metadata:
+  labels:
+    app.kubernetes.io/name: syncsecretakv
+    app.kubernetes.io/managed-by: kustomize
+  name: config-sample
+spec:
+  # TODO(user): Add fields here

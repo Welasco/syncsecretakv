@@ -25,3 +25,13 @@ kubebuilder create api --group core --version v1 --kind Secret
 
 # Create Custom API for a Custom Resource
 kubebuilder create api --group api --version v1alpha1 --kind SyncSecretAKV
+
+# Create Custom API for a Custom Resource
+kubebuilder create api --group api --version v1alpha1 --kind Config
+
+# Kubebuilder has the ability to auto generate a CRD and all definitions for the API
+# You have to install them in the cluster
+make install
+
+# Once everything is ready to be published run the docker build
+IMG=welasco/syncsecretakv make docker-build
