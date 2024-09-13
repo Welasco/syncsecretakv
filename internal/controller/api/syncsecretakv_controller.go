@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -59,6 +60,11 @@ func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	log.Log.Info("SyncSecretAKV detected (add, update, delete): " + syncSecretAKV.Name)
+
+	secret := &corev1.Secret{}
+	if err := r.Get(ctx, req.NamespacedName, secret); err != nil && errors.IsNotFound(err) {
+		log.Log.Error(err, "Unable to fetch Secret, resource was probably deleted")
+	}
 
 	return ctrl.Result{}, nil
 }
