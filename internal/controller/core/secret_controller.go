@@ -51,61 +51,83 @@ type SecretReconciler struct {
 func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	log.Log.Info("Reconciling Secret: " + req.NamespacedName.Name)
-
 	// TODO(user): your logic here
-	secret := &corev1.Secret{}
-	if err := r.Get(ctx, req.NamespacedName, secret); err != nil && errors.IsNotFound(err) {
-		log.Log.Error(err, "Unable to fetch Secret, resource was probably deleted")
 
-		// Check if there is a SyncSecretAKV associated with the secret
-		// If there is, delete the SyncSecretAKV
-		deleteSyncSecretAKV := &apiv1alpha1.SyncSecretAKV{}
-		if err := r.Get(ctx, req.NamespacedName, deleteSyncSecretAKV); err != nil && errors.IsNotFound(err) {
-			log.Log.Error(err, "Unable to fetch SyncSecretAKV, resource was probably deleted")
-		} else {
-			if err := r.Delete(ctx, deleteSyncSecretAKV); err != nil {
-				log.Log.Error(err, "Unable to delete SyncSecretAKV")
+	if req.NamespacedName.Namespace == "vws" {
+		log.Log.Info("Reconciling Secret: " + req.NamespacedName.Name + ", Namespace: " + req.NamespacedName.Namespace)
+
+		// Load the Config object from the namespace
+		config, err := r.LoadConfig(ctx)
+		if err != nil {
+			log.Log.Error(err, "Config not found. Unable to load Config resource from namespace: "+req.NamespacedName.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		// Need to find a way to do not repeat my self fo LoadConfig function
+
+		// config, err := r.LoadConfig(ctx)
+		// if err != nil {
+		// 	log.Log.Error(err, "Config not found. Unable to load Config resource from namespace: "+req.NamespacedName.Namespace)
+		// 	return ctrl.Result{}, err
+		// }
+
+		secret := &corev1.Secret{}
+		if err := r.Get(ctx, req.NamespacedName, secret); err != nil && errors.IsNotFound(err) {
+			log.Log.Info("Unable to fetch Secret, resource was probably deleted. Secret: " + req.NamespacedName.Name + ", Namespace: " + req.NamespacedName.Namespace)
+
+			// Check if there is a SyncSecretAKV associated with the secret
+			// If there is, delete the SyncSecretAKV
+			deleteSyncSecretAKV := &apiv1alpha1.SyncSecretAKV{}
+			if err := r.Get(ctx, req.NamespacedName, deleteSyncSecretAKV); err != nil && errors.IsNotFound(err) {
+				log.Log.Error(err, "Unable to fetch SyncSecretAKV, resource was probably deleted")
+			} else {
+				if err := r.Delete(ctx, deleteSyncSecretAKV); err != nil {
+					log.Log.Error(err, "Unable to delete SyncSecretAKV")
+				}
+				log.Log.Info("Successfully Deleted SyncSecretAKV: " + deleteSyncSecretAKV.Name)
 			}
-			log.Log.Info("Successfully Deleted SyncSecretAKV: " + deleteSyncSecretAKV.Name)
+
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
+		// Need to implement the logic to filter by namespace
+		// Need to implement the logic to filter by secret type
+		// Need to implement the logic to filter by secret labels
 
-	if secret.Namespace == "vws" {
-
-		log.Log.Info("Secret Name: " + secret.Name + " Secrete Type: " + string(secret.Type) + "Namespace Name: " + secret.Namespace)
-
-		// check if a secret has a specific label defined
-		// if secret.Labels["secret-type"] == "my-secret " {
-		// 	log.Log.Info("Secret has a label secret-type: my-secret")
+		// Check if the annotation cert-manager.io/certificate-name is present in the secret
+		// if secret.Annotations["cert-manager.io/certificate-name"] == "true" && secret.Type == "kubernetes.io/tls" {
+		// 	log.Log.Info("Secret Name: " + secret.Name + " Secrete Type: " + string(secret.Type) + "Namespace Name: " + secret.Namespace + " Config Annotation: " + secret.Annotations["cert-manager.io/certificate-name"])
 		// }
 
-		// print all labels from a secret
-		// for key, value := range secret.Labels {
-		// 	log.Log.Info("Label Key: ", key, "\n", "Label Value: ", value)
-		// }
-
-		// Get the secret data
-		for key, value := range secret.Data {
-			log.Log.Info("Key: ", key, "\n", "Value: ", string(value))
+		// Check if Secret type is kubernetes.io/tls
+		if secret.Type != "kubernetes.io/tls" {
+			log.Log.Info("Secret Type is not kubernetes.io/tls, Ignoring Secret. Secret Name: " + secret.Name + " Secrete Type: " + string(secret.Type) + "Namespace Name: " + secret.Namespace)
+			return ctrl.Result{}, nil
 		}
 
-		// Print all annotations from a secret
-		for key, value := range secret.Annotations {
-			log.Log.Info("Annotation Key: ", key, "\n", "Annotation Value: ", value)
+		// Check if the secret has all the labels from a Config.FilterMathincgLabels object
+		for key, value := range config.Spec.FilterMatchingLabels {
+			if secret.Labels[key] != value {
+				log.Log.Info("Label not found in Secret: " + secret.Name + ", Label Key: " + key + " Label Value " + value + ". Ignoring the Secret because of label mismatch comparing with Config FilterMatchingLabels")
+				return ctrl.Result{}, nil
+			}
 		}
 
-		// Print Resource Version of a secret
-		//log.Log.Info("Resource Version: ", secret.ResourceVersion)
+		// Check if the secret has all the annotations from a Config.FilterMatchingAnnotations object
+		for key, value := range config.Spec.FilterMatchingAnnotations {
+			if secret.Annotations[key] != value {
+				log.Log.Info("Annotation not found in Secret: " + secret.Name + ", Annotation Key: " + key + " Annotation Value " + value + ". Ignoring the Secret because of Annotation mismatch comparing with Config FilterMatchingAnnotations")
+				return ctrl.Result{}, nil
+			}
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////
 
 		// Get the SyncSecretAKV object
 		syncSecretAKV := &apiv1alpha1.SyncSecretAKV{}
 		//if err := r.Get(ctx, req.NamespacedName, syncSecretAKV); err != nil {
 		if err := r.Get(ctx, req.NamespacedName, syncSecretAKV); err != nil {
-			log.Log.Info("Error Getting SyncSecretAKV: " + err.Error())
-			log.Log.Info("Creating SyncSecretAKV for Secret: " + secret.Name)
+			log.Log.Info("New Secret Detected! SyncSecretAKV not found, Creating SyncSecretAKV for Secret: " + secret.Name)
 
 			// Create a new SyncSecretAKV object
 			newSyncSecretAKV := &apiv1alpha1.SyncSecretAKV{
@@ -124,12 +146,13 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				log.Log.Error(err, "Unable to create SyncSecretAKV")
 				//return ctrl.Result{}, err
 			}
+			log.Log.Info("Successfully Created SyncSecretAKV: " + newSyncSecretAKV.Name)
 			//return ctrl.Result{}, client.IgnoreNotFound(err)
 		} else {
 			// SyncSecretAKV already exist in the cluster, updating it
 			// Update if secret.ResourceVersion is different then SyncSecretAKV.Spec.SecretResourceVersion
 			if secret.ResourceVersion != syncSecretAKV.Spec.SecretResourceVersion {
-				log.Log.Info("Secret Resource Version is different then SyncSecretAKV Secret Resource Version")
+				log.Log.Info("Secret Update detected, Updating SyncSecretAKV with new Secret Resource Version")
 				syncSecretAKV.Spec.SecretResourceVersion = secret.ResourceVersion
 				if err := r.Update(ctx, syncSecretAKV); err != nil {
 					log.Log.Error(err, "Unable to Update SyncSecretAKV")
@@ -137,39 +160,34 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				}
 				log.Log.Info("Successfully Updated SyncSecretAKV with new Secret Resource Version: " + syncSecretAKV.Spec.SecretResourceVersion)
 			} else {
-				log.Log.Info("Secret Resource Version is the same as SyncSecretAKV Secret Resource Version")
+				log.Log.Info("Secret not changed, no need to update SyncSecretAKV")
 			}
 		}
-
-		// if (&apiv1alpha1.SyncSecretAKV{}) != syncSecretAKV {
-		// 	log.Log.Info("\nSyncSecretAKV Vault Name: " + syncSecretAKV.Spec.VaultName + "\nSyncSecretAKV Secret Name: " + syncSecretAKV.Spec.SecretName + " \nSyncSecretAKV Secret Resource Version: " + syncSecretAKV.Spec.SecretResourceVersion)
-		// }
-
-		// Update if secret.ResourceVersion is different then SyncSecretAKV.Spec.SecretResourceVersion
-		// if secret.ResourceVersion != syncSecretAKV.Spec.SecretResourceVersion {
-		// 	log.Log.Info("Secret Resource Version is different then SyncSecretAKV Secret Resource Version")
-		// 	syncSecretAKV.Spec.SecretResourceVersion = secret.ResourceVersion
-		// 	if err := r.Update(ctx, syncSecretAKV); err != nil {
-		// 		log.Log.Error(err, "Unable to Update SyncSecretAKV")
-		// 		//return ctrl.Result{}, err
-		// 	}
-		// 	log.Log.Info("Successfully Updated SyncSecretAKV with new Secret Resource Version: " + syncSecretAKV.Spec.SecretResourceVersion)
-		// } else {
-		// 	log.Log.Info("Secret Resource Version is the same as SyncSecretAKV Secret Resource Version")
-		// }
-
 	}
 
-	// syncSecretAKV := &apiv1alpha1.SyncSecretAKV{}
-	// if err := r.Get(ctx, req.NamespacedName, syncSecretAKV); err != nil {
-	// 	fmt.Printf("Error Getting SyncSecretAKV: %s\n", err)
-	// 	//return ctrl.Result{}, client.IgnoreNotFound(err)
-	// }
-	// if (&apiv1alpha1.SyncSecretAKV{}) != syncSecretAKV {
-	// 	fmt.Printf("SyncSecretAKV Name: %s \nSyncSecretAKV Vault Name: %s \nSyncSecretAKV Secret Name: %s \nSyncSecretAKV Secret Resource Version: %s\n", syncSecretAKV.Spec.Name, syncSecretAKV.Spec.VaultName, syncSecretAKV.Spec.SecretName, syncSecretAKV.Spec.SecretResourceVersion)
-	// }
-
 	return ctrl.Result{}, nil
+}
+
+func (r *SecretReconciler) LoadConfig(ctx context.Context) (apiv1alpha1.Config, error) {
+
+	config := apiv1alpha1.Config{}
+	configs := apiv1alpha1.ConfigList{}
+
+	// list all apiv1alpha1.Config from the current namespace
+	if err := r.List(ctx, &configs); err != nil {
+		log.Log.Error(err, "Unable to list Config")
+		return config, err
+	}
+
+	// Check if configs has more than one object
+	if len(configs.Items) > 1 {
+		log.Log.Info("More than one config.api.syncsecretakv.io object found for the current namespace, using the first object and ignoring the rest.")
+		config = configs.Items[0]
+	} else {
+		config = configs.Items[0]
+	}
+
+	return config, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

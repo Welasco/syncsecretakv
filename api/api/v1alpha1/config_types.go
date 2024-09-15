@@ -28,14 +28,39 @@ type ConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Config. Edit config_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	AzKeyVaultURL string `json:"azkeyvaulturl"`
+
+	// +kubebuilder:validation:Optional
+	AzKeyVaultClientID string `json:"azkeyvaultclientid"`
+
+	// +kubebuilder:validation:Optional
+	AzKeyVaultClientSecret string `json:"azkeyvaultclientsecret"`
+
+	// +kubebuilder:validation:Optional
+	AzKeyVaultTenantID string `json:"azkeyvaulttenantid"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=UserAssignedManagedIdentity;SystemAssignedManagedIdentity;WorkloadIdentity;none
+	// +kubebuilder:default:=none
+	AzKeyVaultAuthMethod string `json:"azkeyvaultauthmethod"`
+
+	// +kubebuilder:validation:Optional
+	FilterMatchingLabels map[string]string `json:"filtermatchinglabels"`
+
+	// +kubebuilder:validation:Optional
+	FilterMatchingAnnotations map[string]string `json:"filtermatchingannotations"`
+
+	// +kubebuilder:default:=true
+	AllowAzKeyVaultSecretDeletion bool `json:"allowazkeyvaultsecretdeletion"`
 }
 
 // ConfigStatus defines the observed state of Config
 type ConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	ConfigStatus        string `json:"syncStatus"`
+	ConfigStatusMessage string `json:"syncStatusMessage"`
 }
 
 // +kubebuilder:object:root=true

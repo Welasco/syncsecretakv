@@ -54,6 +54,28 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return ctrl.Result{}, nil
 }
 
+func (r *ConfigReconciler) LoadConfig(ctx context.Context) (apiv1alpha1.Config, error) {
+
+	config := apiv1alpha1.Config{}
+	configs := apiv1alpha1.ConfigList{}
+
+	// list all apiv1alpha1.Config from the current namespace
+	if err := r.List(ctx, &configs); err != nil {
+		log.Log.Error(err, "Unable to list Config")
+		return config, err
+	}
+
+	// Check if configs has more than one object
+	if len(configs.Items) > 1 {
+		log.Log.Info("More than one config.api.syncsecretakv.io object found for the current namespace, using the first object and ignoring the rest.")
+		config = configs.Items[0]
+	} else {
+		config = configs.Items[0]
+	}
+
+	return config, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).

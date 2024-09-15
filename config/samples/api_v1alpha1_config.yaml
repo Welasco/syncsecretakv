@@ -5,5 +5,15 @@ metadata:
     app.kubernetes.io/name: syncsecretakv
     app.kubernetes.io/managed-by: kustomize
   name: config-sample
+  namespace: vws
 spec:
   # TODO(user): Add fields here
+  azkeyvaulturl: "https://vwskvspokeaks-nopurge.vault.azure.net/"
+  #azkeyvaultclientid: "<your-client-id>"
+  #azkeyvaultclientsecret: "<your-client-secret>"
+  #azkeyvaulttenantid: "<your-tenant-id>"
+  azkeyvaultauthmethod: "WorkloadIdentity" # Allowed values: UserAssignedManagedIdentity;SystemAssignedManagedIdentity;WorkloadIdentity;none
+  allowazkeyvaultsecretdeletion: true
+  # filtermatchinglabels:
+  #   label1: "label1"
+  #   label2: "label2"
