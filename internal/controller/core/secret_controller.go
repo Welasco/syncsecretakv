@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	apiv1alpha1 "github.com/welasco/syncsecretakv/api/api/v1alpha1"
+	"github.com/welasco/syncsecretakv/internal/controller/api"
 )
 
 // SecretReconciler reconciles a Secret object
@@ -57,19 +58,12 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Log.Info("Reconciling Secret: " + req.NamespacedName.Name + ", Namespace: " + req.NamespacedName.Namespace)
 
 		// Load the Config object from the namespace
-		config, err := r.LoadConfig(ctx)
+		// LoadConfig function is defined in the api package at internal/controller/api/config_controller.go
+		config, err := api.LoadConfig(ctx, r.Client)
 		if err != nil {
 			log.Log.Error(err, "Config not found. Unable to load Config resource from namespace: "+req.NamespacedName.Namespace)
 			return ctrl.Result{}, err
 		}
-
-		// Need to find a way to do not repeat my self fo LoadConfig function
-
-		// config, err := r.LoadConfig(ctx)
-		// if err != nil {
-		// 	log.Log.Error(err, "Config not found. Unable to load Config resource from namespace: "+req.NamespacedName.Namespace)
-		// 	return ctrl.Result{}, err
-		// }
 
 		secret := &corev1.Secret{}
 		if err := r.Get(ctx, req.NamespacedName, secret); err != nil && errors.IsNotFound(err) {
@@ -89,15 +83,6 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
-
-		// Need to implement the logic to filter by namespace
-		// Need to implement the logic to filter by secret type
-		// Need to implement the logic to filter by secret labels
-
-		// Check if the annotation cert-manager.io/certificate-name is present in the secret
-		// if secret.Annotations["cert-manager.io/certificate-name"] == "true" && secret.Type == "kubernetes.io/tls" {
-		// 	log.Log.Info("Secret Name: " + secret.Name + " Secrete Type: " + string(secret.Type) + "Namespace Name: " + secret.Namespace + " Config Annotation: " + secret.Annotations["cert-manager.io/certificate-name"])
-		// }
 
 		// Check if Secret type is kubernetes.io/tls
 		if secret.Type != "kubernetes.io/tls" {
@@ -125,7 +110,6 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 		// Get the SyncSecretAKV object
 		syncSecretAKV := &apiv1alpha1.SyncSecretAKV{}
-		//if err := r.Get(ctx, req.NamespacedName, syncSecretAKV); err != nil {
 		if err := r.Get(ctx, req.NamespacedName, syncSecretAKV); err != nil {
 			log.Log.Info("New Secret Detected! SyncSecretAKV not found, Creating SyncSecretAKV for Secret: " + secret.Name)
 
@@ -166,28 +150,6 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func (r *SecretReconciler) LoadConfig(ctx context.Context) (apiv1alpha1.Config, error) {
-
-	config := apiv1alpha1.Config{}
-	configs := apiv1alpha1.ConfigList{}
-
-	// list all apiv1alpha1.Config from the current namespace
-	if err := r.List(ctx, &configs); err != nil {
-		log.Log.Error(err, "Unable to list Config")
-		return config, err
-	}
-
-	// Check if configs has more than one object
-	if len(configs.Items) > 1 {
-		log.Log.Info("More than one config.api.syncsecretakv.io object found for the current namespace, using the first object and ignoring the rest.")
-		config = configs.Items[0]
-	} else {
-		config = configs.Items[0]
-	}
-
-	return config, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

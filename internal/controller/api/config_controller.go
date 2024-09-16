@@ -51,18 +51,51 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// TODO(user): your logic here
 
+	// Probably test access to the Azure Key Vault here
+
+	// Load the Config object from the namespace
+	config := &apiv1alpha1.Config{}
+	if err := r.Get(ctx, req.NamespacedName, config); err != nil {
+		log.Log.Error(err, "Unable to load Config object")
+		return ctrl.Result{}, err
+	}
+
+	// Test if the config is valid by accessing the Azure Key Vault
+	// NewAzKeyVaultClient function is defined in the api package at internal/controller/api/syncsecretakv_controller.go
+	clientCertificate := NewAzKeyVaultClient(config)
+
+	// List all certificates in the Azure Key Vault to test Config
+	pager := clientCertificate.NewListCertificatesPager(nil)
+
+	log.Log.Info("Testing Config by listing certificates in the Azure Key Vault: ")
+	for pager.More() {
+		page, err := pager.NextPage(context.Background())
+		if err != nil {
+			log.Log.Error(err, "Unable to list certificates in the Azure Key Vault, invalid Config settings")
+			config.Status.ConfigStatus = "Failed"
+			config.Status.ConfigStatusMessage = "Unable to list certificates in the Azure Key Vault, invalid Config settings"
+			return ctrl.Result{}, err
+		}
+		for _, cert := range page.Value {
+			log.Log.Info("Certificate: " + cert.ID.Name())
+		}
+	}
+
+	config.Status.ConfigStatus = "Success"
+	config.Status.ConfigStatusMessage = "Successfully listed certificates in the Azure Key Vault"
+
 	return ctrl.Result{}, nil
 }
 
-func (r *ConfigReconciler) LoadConfig(ctx context.Context) (apiv1alpha1.Config, error) {
+func LoadConfig(ctx context.Context, client client.Client) (*apiv1alpha1.Config, error) {
 
 	config := apiv1alpha1.Config{}
 	configs := apiv1alpha1.ConfigList{}
 
 	// list all apiv1alpha1.Config from the current namespace
-	if err := r.List(ctx, &configs); err != nil {
-		log.Log.Error(err, "Unable to list Config")
-		return config, err
+	if err := client.List(ctx, &configs); err != nil {
+		log.Log.Error(err, "Unable to list Configs in the current namespace")
+		return &config, err
 	}
 
 	// Check if configs has more than one object
@@ -73,7 +106,7 @@ func (r *ConfigReconciler) LoadConfig(ctx context.Context) (apiv1alpha1.Config, 
 		config = configs.Items[0]
 	}
 
-	return config, nil
+	return &config, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
