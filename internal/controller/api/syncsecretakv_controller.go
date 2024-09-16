@@ -235,10 +235,10 @@ func ImportOrUpdateAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultC
 
 	//Import Certificate
 	_, err := clientCertificate.ImportCertificate(context.TODO(), fullCert, azcertificates.ImportCertificateParameters{Base64EncodedCertificate: &azKeyVaultCertificateName}, nil)
-	// if err != nil {
-	// 	log.Log.Error(err, "Failed to import or update certificate into Azure Key Vault")
-	// }
-	// log.Log.Info("Successfuly imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName)
+	if err != nil {
+		log.Log.Error(err, "Failed to import or update certificate into Azure Key Vault")
+	}
+	log.Log.Info("Successfuly imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 	return err
 }
 

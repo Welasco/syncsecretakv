@@ -9,7 +9,11 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "/home/victor/syncsecretakv/cmd"
+            "program": "/home/victor/syncsecretakv/cmd",
+            // "env": {
+            //     "HTTP_PROXY": "http://localhost:8080",
+            //     "HTTPS_PROXY": "http://localhost:8080"
+            // }
         }
     ]
 }
