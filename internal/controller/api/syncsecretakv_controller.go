@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 	"os"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -86,26 +87,41 @@ func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// Import or Update Azure Key Vault Certificate
-	log.Log.Info("Importing or Updating Azure Key Vault Certificate: " + azKeyVaultCertificateName)
-	err = ImportOrUpdateAzKeyVaultCertificate(config, azKeyVaultCertificateName, secret)
-	if err != nil {
-		log.Log.Error(err, "Failed to import or update certificate into Azure Key Vault")
+
+	// Need to check the revision of the secret to determine if the certificate needs to be updated
+	if syncSecretAKV.Spec.SecretResourceVersion != syncSecretAKV.Spec.SyncSecretAKVResourceVersion {
+
+		log.Log.Info("Importing or Updating Azure Key Vault Certificate: " + azKeyVaultCertificateName)
+		err = ImportOrUpdateAzKeyVaultCertificate(config, azKeyVaultCertificateName, secret)
+		if err != nil {
+			log.Log.Error(err, "Failed to import or update certificate into Azure Key Vault")
+
+			// Update SyncSecretAKV Status
+			syncSecretAKV.Status.SyncStatus = "Failed"
+			syncSecretAKV.Status.SyncStatusMessage = "Failed to import or update certificate into Azure Key Vault. Error: " + err.Error()
+			if err := r.Status().Update(ctx, syncSecretAKV); err != nil {
+				log.Log.Error(err, "Failed to update SyncSecretAKV status")
+			}
+			return ctrl.Result{}, nil
+		}
+
+		syncSecretAKV.Spec.SyncSecretAKVResourceVersion = syncSecretAKV.Spec.SecretResourceVersion
+		if err := r.Update(ctx, syncSecretAKV); err != nil {
+			log.Log.Error(err, "Failed to update SyncSecretAKV")
+			return ctrl.Result{}, nil
+		}
+
+		log.Log.Info("Successfuly imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 
 		// Update SyncSecretAKV Status
-		syncSecretAKV.Status.SyncStatus = "Failed"
-		syncSecretAKV.Status.SyncStatusMessage = "Failed to import or update certificate into Azure Key Vault"
+		syncSecretAKV.Status.SyncStatus = "Success"
+		syncSecretAKV.Status.SyncStatusMessage = "Successfully imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName
 		if err := r.Status().Update(ctx, syncSecretAKV); err != nil {
 			log.Log.Error(err, "Failed to update SyncSecretAKV status")
 		}
-		return ctrl.Result{}, nil
-	}
-	log.Log.Info("Successfuly imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 
-	// Update SyncSecretAKV Status
-	syncSecretAKV.Status.SyncStatus = "Success"
-	syncSecretAKV.Status.SyncStatusMessage = "Successfully imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName
-	if err := r.Status().Update(ctx, syncSecretAKV); err != nil {
-		log.Log.Error(err, "Failed to update SyncSecretAKV status")
+	} else {
+		log.Log.Info("Azure Key Vault Certificate is up to date: " + azKeyVaultCertificateName)
 	}
 
 	return ctrl.Result{}, nil
@@ -144,19 +160,36 @@ func ConvertToPkcs8PEM(privKey *string) string {
 
 }
 
-func DeleteAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertificateName string) {
+func DeleteAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertificateName string) error {
 
 	log.Log.Info("Deleting Azure Key Vault Certificate")
 
+	err := error(nil)
 	// Create Azure Credential
 	clientCertificate := NewAzKeyVaultClient(config)
 
-	//Delete Certificate
-	_, err := clientCertificate.DeleteCertificate(context.TODO(), azKeyVaultCertificateName, nil)
-	if err != nil {
-		log.Log.Error(err, "Failed to delete certificate from Azure Key Vault")
+	if config.Spec.AllowAzKeyVaultCertificateDeletion {
+
+		//Delete Certificate
+		_, err := clientCertificate.DeleteCertificate(context.TODO(), azKeyVaultCertificateName, nil)
+		if err != nil {
+			log.Log.Error(err, "Failed to delete certificate from Azure Key Vault")
+		}
+		log.Log.Info("Successfuly deleted Azure Key Vault Certificate: " + azKeyVaultCertificateName)
+
+		// Sleep for 20 seconds to allow the certificate to be purged
+		log.Log.Info("Sleeping for 20 seconds to allow the certificate to be purged")
+		time.Sleep(20 * time.Second)
+
+		//Purge Certificate
+		_, err = clientCertificate.PurgeDeletedCertificate(context.TODO(), azKeyVaultCertificateName, nil)
+		if err != nil {
+			log.Log.Error(err, "Failed to purge certificate from Azure Key Vault")
+		}
+		log.Log.Info("Successfuly purged Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 	}
-	log.Log.Info("Successfuly deleted Azure Key Vault Certificate: " + azKeyVaultCertificateName)
+
+	return err
 }
 
 func NewAzKeyVaultClient(config *apiv1alpha1.Config) *azcertificates.Client {
@@ -220,12 +253,14 @@ func ImportOrUpdateAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultC
 	var pubKey string
 	var privKey string
 
+	// Need to take care of the ca.crt in case it exist
 	for key, value := range secret.Data {
-		log.Log.Info("Key: ", key, "\n", "Value: ", string(value))
-		if key == ".tls.crt" {
+		//log.Log.Info("Key: ", key, "\n", "Value: ", string(value))
+		log.Log.Info("Secret Key: " + key)
+		if key == "tls.crt" {
 			pubKey = string(value)
 		}
-		if key == ".tls.key" {
+		if key == "tls.key" {
 			privKey = string(value)
 		}
 	}
@@ -234,11 +269,10 @@ func ImportOrUpdateAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultC
 	fullCert = pubKey + "\n" + fullCert
 
 	//Import Certificate
-	_, err := clientCertificate.ImportCertificate(context.TODO(), fullCert, azcertificates.ImportCertificateParameters{Base64EncodedCertificate: &azKeyVaultCertificateName}, nil)
+	_, err := clientCertificate.ImportCertificate(context.TODO(), azKeyVaultCertificateName, azcertificates.ImportCertificateParameters{Base64EncodedCertificate: &fullCert}, nil)
 	if err != nil {
 		log.Log.Error(err, "Failed to import or update certificate into Azure Key Vault")
 	}
-	log.Log.Info("Successfuly imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 	return err
 }
 

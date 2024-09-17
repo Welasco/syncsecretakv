@@ -31,9 +31,10 @@ type SyncSecretAKVSpec struct {
 	// Foo is an example field of SyncSecretAKV. Edit syncsecretakv_types.go to remove/update
 	// Foo string `json:"foo,omitempty"`
 
-	VaultName             string `json:"vaultName"`
-	SecretName            string `json:"secretName"`
-	SecretResourceVersion string `json:"secretResourceVersion"`
+	VaultName                    string `json:"vaultName"`
+	SecretName                   string `json:"secretName"`
+	SecretResourceVersion        string `json:"secretResourceVersion"`
+	SyncSecretAKVResourceVersion string `json:"syncSecretResourceVersion"`
 }
 
 // SyncSecretAKVStatus defines the observed state of SyncSecretAKV

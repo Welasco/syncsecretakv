@@ -8,12 +8,14 @@ metadata:
   namespace: vws
 spec:
   # TODO(user): Add fields here
-  azkeyvaulturl: "https://vwskvspokeaks-nopurge.vault.azure.net/"
-  #azkeyvaultclientid: "<your-client-id>"
-  #azkeyvaultclientsecret: "<your-client-secret>"
-  #azkeyvaulttenantid: "<your-tenant-id>"
-  azkeyvaultauthmethod: "WorkloadIdentity" # Allowed values: UserAssignedManagedIdentity;SystemAssignedManagedIdentity;WorkloadIdentity;none
-  allowazkeyvaultsecretdeletion: true
-  # filtermatchinglabels:
+  azKeyVaultURL: "https://vwskvspokeaks-nopurge.vault.azure.net/"
+  #azKeyvaultClientId: "<your-client-id>"
+  #azKeyVaultClientSecret: "<your-client-secret>"
+  #azKeyVaultTenantId: "<your-tenant-id>"
+  allowAzKeyVaultCertificateDeletion: true
+  # filterMatchingLabels:
+  #   label1: "label1"
+  #   label2: "label2"
+  # filterMatchingAnnotations:
   #   label1: "label1"
   #   label2: "label2"

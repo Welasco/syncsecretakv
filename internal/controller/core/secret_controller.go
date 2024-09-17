@@ -73,7 +73,7 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			// If there is, delete the SyncSecretAKV
 			deleteSyncSecretAKV := &apiv1alpha1.SyncSecretAKV{}
 			if err := r.Get(ctx, req.NamespacedName, deleteSyncSecretAKV); err != nil && errors.IsNotFound(err) {
-				log.Log.Error(err, "Unable to fetch SyncSecretAKV, resource was probably deleted")
+				log.Log.Info("Unable to fetch SyncSecretAKV, resource was probably deleted")
 			} else {
 				if err := r.Delete(ctx, deleteSyncSecretAKV); err != nil {
 					log.Log.Error(err, "Unable to delete SyncSecretAKV")
@@ -86,7 +86,7 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 		// Check if Secret type is kubernetes.io/tls
 		if secret.Type != "kubernetes.io/tls" {
-			log.Log.Info("Secret Type is not kubernetes.io/tls, Ignoring Secret. Secret Name: " + secret.Name + " Secrete Type: " + string(secret.Type) + "Namespace Name: " + secret.Namespace)
+			log.Log.Info("Secret Type is not kubernetes.io/tls, Ignoring Secret. Secret Name: " + secret.Name + " Secrete Type: " + string(secret.Type) + " Namespace Name: " + secret.Namespace)
 			return ctrl.Result{}, nil
 		}
 

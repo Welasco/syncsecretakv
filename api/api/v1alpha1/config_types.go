@@ -28,30 +28,25 @@ type ConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	AzKeyVaultURL string `json:"azkeyvaulturl"`
+	AzKeyVaultURL string `json:"azKeyVaultURL"`
 
 	// +kubebuilder:validation:Optional
-	AzKeyVaultClientID string `json:"azkeyvaultclientid"`
+	AzKeyVaultClientID string `json:"azKeyvaultClientId"`
 
 	// +kubebuilder:validation:Optional
-	AzKeyVaultClientSecret string `json:"azkeyvaultclientsecret"`
+	AzKeyVaultClientSecret string `json:"azKeyVaultClientSecret"`
 
 	// +kubebuilder:validation:Optional
-	AzKeyVaultTenantID string `json:"azkeyvaulttenantid"`
+	AzKeyVaultTenantID string `json:"azKeyVaultTenantId"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=UserAssignedManagedIdentity;SystemAssignedManagedIdentity;WorkloadIdentity;none
-	// +kubebuilder:default:=none
-	AzKeyVaultAuthMethod string `json:"azkeyvaultauthmethod"`
+	FilterMatchingLabels map[string]string `json:"filterMatchingLabels"`
 
 	// +kubebuilder:validation:Optional
-	FilterMatchingLabels map[string]string `json:"filtermatchinglabels"`
-
-	// +kubebuilder:validation:Optional
-	FilterMatchingAnnotations map[string]string `json:"filtermatchingannotations"`
+	FilterMatchingAnnotations map[string]string `json:"filterMatchingAnnotations"`
 
 	// +kubebuilder:default:=true
-	AllowAzKeyVaultSecretDeletion bool `json:"allowazkeyvaultsecretdeletion"`
+	AllowAzKeyVaultCertificateDeletion bool `json:"allowAzKeyVaultCertificateDeletion"`
 }
 
 // ConfigStatus defines the observed state of Config

@@ -73,7 +73,10 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err != nil {
 			log.Log.Error(err, "Unable to list certificates in the Azure Key Vault, invalid Config settings")
 			config.Status.ConfigStatus = "Failed"
-			config.Status.ConfigStatusMessage = "Unable to list certificates in the Azure Key Vault, invalid Config settings"
+			config.Status.ConfigStatusMessage = "Unable to list certificates in the Azure Key Vault, invalid Config settings. Error: " + err.Error()
+			if err := r.Status().Update(ctx, config); err != nil {
+				log.Log.Error(err, "Failed to update Config status")
+			}
 			return ctrl.Result{}, err
 		}
 		for _, cert := range page.Value {
@@ -83,6 +86,9 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	config.Status.ConfigStatus = "Success"
 	config.Status.ConfigStatusMessage = "Successfully listed certificates in the Azure Key Vault"
+	if err := r.Status().Update(ctx, config); err != nil {
+		log.Log.Error(err, "Failed to update Config status")
+	}
 
 	return ctrl.Result{}, nil
 }
