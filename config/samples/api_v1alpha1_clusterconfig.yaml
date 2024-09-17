@@ -1,0 +1,20 @@
+apiVersion: api.syncsecretakv.io/v1alpha1
+kind: ClusterConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: syncsecretakv
+    app.kubernetes.io/managed-by: kustomize
+  name: clusterconfig-sample
+spec:
+  # TODO(user): Add fields here
+  azKeyVaultURL: "https://vwskvspokeaks-nopurge.vault.azure.net/"
+  #azKeyvaultClientId: "<your-client-id>"
+  #azKeyVaultClientSecret: "<your-client-secret>"
+  #azKeyVaultTenantId: "<your-tenant-id>"
+  allowAzKeyVaultCertificateDeletion: true
+  # filterMatchingLabels:
+  #   label1: "label1"
+  #   label2: "label2"
+  # filterMatchingAnnotations:
+  #   label1: "label1"
+  #   label2: "label2"

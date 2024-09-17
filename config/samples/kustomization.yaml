@@ -2,4 +2,5 @@
 resources:
 - api_v1alpha1_syncsecretakv.yaml
 - api_v1alpha1_config.yaml
+- api_v1alpha1_clusterconfig.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
