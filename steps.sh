@@ -35,3 +35,6 @@ make install
 
 # Once everything is ready to be published run the docker build
 IMG=welasco/syncsecretakv make docker-build
+
+# Create Custom API Cluster-scoped for Global Configuration
+kubebuilder create api --group api --version v1alpha1 --kind ClusterConfig --namespaced=false

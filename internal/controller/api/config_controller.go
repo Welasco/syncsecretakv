@@ -18,6 +18,7 @@ package api
 
 import (
 	"context"
+	"errors"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -51,18 +52,18 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// TODO(user): your logic here
 
-	// Probably test access to the Azure Key Vault here
+	log.Log.Info("Reconciling Namespace Config: " + req.NamespacedName.Name)
 
 	// Load the Config object from the namespace
 	config := &apiv1alpha1.Config{}
 	if err := r.Get(ctx, req.NamespacedName, config); err != nil {
-		log.Log.Error(err, "Unable to load Config object")
+		log.Log.Info("Unable to load Config object, the Config object was probably deleted")
 		return ctrl.Result{}, err
 	}
 
 	// Test if the config is valid by accessing the Azure Key Vault
 	// NewAzKeyVaultClient function is defined in the api package at internal/controller/api/syncsecretakv_controller.go
-	clientCertificate := NewAzKeyVaultClient(config)
+	clientCertificate := NewAzKeyVaultClientConfig(config)
 
 	// List all certificates in the Azure Key Vault to test Config
 	pager := clientCertificate.NewListCertificatesPager(nil)
@@ -98,18 +99,47 @@ func LoadConfig(ctx context.Context, client client.Client) (*apiv1alpha1.Config,
 	config := apiv1alpha1.Config{}
 	configs := apiv1alpha1.ConfigList{}
 
+	clusterConfigs := apiv1alpha1.ClusterConfigList{}
+
+	noNamespaceConfig := false
 	// list all apiv1alpha1.Config from the current namespace
 	if err := client.List(ctx, &configs); err != nil {
 		log.Log.Error(err, "Unable to list Configs in the current namespace")
-		return &config, err
+		noNamespaceConfig = true
+		// return &config, err
+	} else {
+		if len(configs.Items) == 0 {
+			noNamespaceConfig = true
+		} else {
+			// Check if configs has more than one object
+			if len(configs.Items) > 1 {
+				log.Log.Info("More than one config.api.syncsecretakv.io object found for the current namespace, using the first object and ignoring the rest.")
+				config = configs.Items[0]
+			} else {
+				config = configs.Items[0]
+			}
+		}
 	}
 
-	// Check if configs has more than one object
-	if len(configs.Items) > 1 {
-		log.Log.Info("More than one config.api.syncsecretakv.io object found for the current namespace, using the first object and ignoring the rest.")
-		config = configs.Items[0]
-	} else {
-		config = configs.Items[0]
+	if noNamespaceConfig {
+		if err := client.List(ctx, &clusterConfigs); err != nil {
+			log.Log.Error(err, "Unable to list ClusterConfig in the Cluster")
+			return nil, err
+		} else {
+			if len(clusterConfigs.Items) == 0 {
+				log.Log.Info("No Namespace Config found or ClusterConfig in the cluster. Do nothing.")
+				err := errors.New("no namespace nonfig found or nlusterconfig in the cluster, do nothing")
+				return nil, err
+			}
+
+			if len(clusterConfigs.Items) > 1 {
+				log.Log.Info("More than one clusterconfig.api.syncsecretakv.io object found in the cluster, using the first object and ignoring the rest.")
+				//config = configs.Items[0]
+				config = *ConvertToConfig(&clusterConfigs.Items[0])
+			} else {
+				config = *ConvertToConfig(&clusterConfigs.Items[0])
+			}
+		}
 	}
 
 	return &config, nil

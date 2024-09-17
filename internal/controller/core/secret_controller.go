@@ -18,6 +18,7 @@ package core
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -61,8 +62,8 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// LoadConfig function is defined in the api package at internal/controller/api/config_controller.go
 		config, err := api.LoadConfig(ctx, r.Client)
 		if err != nil {
-			log.Log.Error(err, "Config not found. Unable to load Config resource from namespace: "+req.NamespacedName.Namespace)
-			return ctrl.Result{}, err
+			log.Log.Info("Config not found. Unable to cind a Config in namespace: " + req.NamespacedName.Namespace + ". Unable to find ClusterConfig in the cluster.")
+			return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(30 * time.Second)}, nil
 		}
 
 		secret := &corev1.Secret{}
@@ -120,7 +121,6 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 					Namespace: secret.Namespace,
 				},
 				Spec: apiv1alpha1.SyncSecretAKVSpec{
-					VaultName:             "my-vault",
 					SecretName:            secret.Name,
 					SecretResourceVersion: secret.ResourceVersion,
 				},

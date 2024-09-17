@@ -7,6 +7,7 @@ rules:
 - apiGroups:
   - api.syncsecretakv.io
   resources:
+  - clusterconfigs
   - configs
   - syncsecretakvs
   verbs:
@@ -20,6 +21,7 @@ rules:
 - apiGroups:
   - api.syncsecretakv.io
   resources:
+  - clusterconfigs/finalizers
   - configs/finalizers
   - syncsecretakvs/finalizers
   verbs:
@@ -27,6 +29,7 @@ rules:
 - apiGroups:
   - api.syncsecretakv.io
   resources:
+  - clusterconfigs/status
   - configs/status
   - syncsecretakvs/status
   verbs:

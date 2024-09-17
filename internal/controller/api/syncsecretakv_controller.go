@@ -30,9 +30,11 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azcertificates"
+	"github.com/welasco/syncsecretakv/api/api/v1alpha1"
 	apiv1alpha1 "github.com/welasco/syncsecretakv/api/api/v1alpha1"
 
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 )
 
@@ -67,7 +69,7 @@ func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// LoadConfig function is defined in the api package at internal/controller/api/config_controller.go
 	config, err := LoadConfig(ctx, r.Client)
 	if err != nil {
-		log.Log.Error(err, "Config not found. Unable to load Config resource from namespace: "+req.NamespacedName.Namespace)
+		log.Log.Error(err, "Config not found. Unable to cind a Config in namespace: "+req.NamespacedName.Namespace+". Unable to find ClusterConfig in the cluster.")
 		return ctrl.Result{}, err
 	}
 
@@ -82,7 +84,12 @@ func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	secret := &corev1.Secret{}
 	if err := r.Get(ctx, req.NamespacedName, secret); err != nil && errors.IsNotFound(err) {
-		log.Log.Error(err, "Unable to fetch Secret, resource was probably deleted")
+		log.Log.Info("Unable to fetch Secret, resource was probably deleted. Secret: " + req.NamespacedName.Name + ", Namespace: " + req.NamespacedName.Namespace)
+		log.Log.Info("Deleting corresponding SyncSecretAKV: " + syncSecretAKV.Name)
+		if err := r.Delete(ctx, syncSecretAKV); err != nil {
+			log.Log.Error(err, "Unable to delete SyncSecretAKV")
+		}
+		log.Log.Info("Successfully Deleted SyncSecretAKV: " + syncSecretAKV.Name)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -166,7 +173,7 @@ func DeleteAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertifica
 
 	err := error(nil)
 	// Create Azure Credential
-	clientCertificate := NewAzKeyVaultClient(config)
+	clientCertificate := NewAzKeyVaultClientConfig(config)
 
 	if config.Spec.AllowAzKeyVaultCertificateDeletion {
 
@@ -192,7 +199,7 @@ func DeleteAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertifica
 	return err
 }
 
-func NewAzKeyVaultClient(config *apiv1alpha1.Config) *azcertificates.Client {
+func NewAzKeyVaultClientOld(config *v1alpha1.Config) *azcertificates.Client {
 
 	keyVaultUrl := config.Spec.AzKeyVaultURL
 
@@ -243,12 +250,125 @@ func NewAzKeyVaultClient(config *apiv1alpha1.Config) *azcertificates.Client {
 	return clientCertificate
 }
 
+func NewAzKeyVaultClientClusterConfig(clusterConfig *v1alpha1.ClusterConfig) *azcertificates.Client {
+	return newAzKeyVaultClient(clusterConfig, nil)
+}
+
+func NewAzKeyVaultClientConfig(config *v1alpha1.Config) *azcertificates.Client {
+	return newAzKeyVaultClient(nil, config)
+}
+
+func newAzKeyVaultClient(clusterConfig *v1alpha1.ClusterConfig, config *v1alpha1.Config) *azcertificates.Client {
+
+	var newConfig *v1alpha1.Config
+	// if reflect.TypeOf(config).String() == "*v1alpha1.ClusterConfig" {
+	// 	log.Log.Info("Config Type: " + reflect.TypeOf(config).String())
+	// 	err := error(nil)
+	// 	newConfig, err = convertToConfig(config)
+	// 	if err != nil {
+	// 		log.Log.Error(err, "Failed to convert to Config")
+	// 	}
+	// } else {
+	// 	err := error(nil)
+	// 	newConfig, err = convertToConfig(config)
+	// 	if err != nil {
+	// 		log.Log.Error(err, "Failed to convert to Config")
+	// 	}
+	// }
+	if clusterConfig != nil {
+		//newConfig = &v1alpha1.Config{}
+		newConfig = ConvertToConfig(clusterConfig)
+	} else {
+		newConfig = config
+	}
+
+	keyVaultUrl := newConfig.Spec.AzKeyVaultURL
+
+	if newConfig.Spec.AzKeyVaultTenantID != "" {
+		// Set the AZURE_TENANT_ID environment variable
+		os.Setenv("AZURE_TENANT_ID", newConfig.Spec.AzKeyVaultTenantID)
+	} else {
+		_, exists := os.LookupEnv("AZURE_TENANT_ID")
+		if exists {
+			os.Unsetenv("AZURE_TENANT_ID")
+		}
+	}
+
+	if newConfig.Spec.AzKeyVaultClientID != "" {
+		// Set the AZURE_CLIENT_ID environment variable
+		os.Setenv("AZURE_CLIENT_ID", newConfig.Spec.AzKeyVaultClientID)
+	} else {
+		_, exists := os.LookupEnv("AZURE_CLIENT_ID")
+		if exists {
+			os.Unsetenv("AZURE_CLIENT_ID")
+		}
+	}
+
+	if newConfig.Spec.AzKeyVaultClientSecret != "" {
+		// Set the AZURE_CLIENT_SECRET environment variable
+		os.Setenv("AZURE_CLIENT_SECRET", newConfig.Spec.AzKeyVaultClientSecret)
+	} else {
+		_, exists := os.LookupEnv("AZURE_CLIENT_SECRET")
+		if exists {
+			os.Unsetenv("AZURE_CLIENT_SECRET")
+		}
+	}
+
+	// Need to implement a logic to set the required environment variables for the Azure SDK DefaultCredential
+
+	// Create Azure Credential
+	// Implement support for Workload Identity, Managed Identity, Service Principal, and Client Secret
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		log.Log.Error(err, "Failed to obtain a credential")
+	}
+
+	//Establish a connection to the Key Vault clientSecret
+	clientCertificate, err := azcertificates.NewClient(keyVaultUrl, cred, nil)
+	if err != nil {
+		log.Log.Error(err, "Failed to create a client connection to Azure Key Vault")
+	}
+	return clientCertificate
+}
+
+func ConvertToConfig(clusterConfig *v1alpha1.ClusterConfig) *v1alpha1.Config {
+	var config v1alpha1.Config
+
+	config.Spec.AzKeyVaultURL = clusterConfig.Spec.AzKeyVaultURL
+	config.Spec.AzKeyVaultTenantID = clusterConfig.Spec.AzKeyVaultTenantID
+	config.Spec.AzKeyVaultClientID = clusterConfig.Spec.AzKeyVaultClientID
+	config.Spec.AzKeyVaultClientSecret = clusterConfig.Spec.AzKeyVaultClientSecret
+	config.Spec.FilterMatchingLabels = clusterConfig.Spec.FilterMatchingLabels
+	config.Spec.FilterMatchingAnnotations = clusterConfig.Spec.FilterMatchingAnnotations
+	config.Spec.AllowAzKeyVaultCertificateDeletion = clusterConfig.Spec.AllowAzKeyVaultCertificateDeletion
+
+	return &config
+}
+
+func convertToConfig(data interface{}) (*v1alpha1.Config, error) {
+	var config v1alpha1.Config
+
+	// Convert the interface to JSON bytes
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal the JSON bytes to ConfigSpec
+	err = json.Unmarshal(jsonData, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
 func ImportOrUpdateAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertificateName string, secret *corev1.Secret) error {
 
 	log.Log.Info("Importing or Updating Azure Key Vault Certificate")
 
 	// Create Azure Credential
-	clientCertificate := NewAzKeyVaultClient(config)
+	clientCertificate := NewAzKeyVaultClientConfig(config)
 
 	var pubKey string
 	var privKey string
