@@ -12,6 +12,9 @@ spec:
   #azKeyVaultClientSecret: "<your-client-secret>"
   #azKeyVaultTenantId: "<your-tenant-id>"
   allowAzKeyVaultCertificateDeletion: true
+  filterMatchingNamespace:
+    - "vws"
+    - "vws2"
   # filterMatchingLabels:
   #   label1: "label1"
   #   label2: "label2"

@@ -52,12 +52,12 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// TODO(user): your logic here
 
-	log.Log.Info("Reconciling Namespace Config: " + req.NamespacedName.Name)
+	log.Log.Info("ConfigController - Reconciling Namespace Config: " + req.NamespacedName.Name)
 
 	// Load the Config object from the namespace
 	config := &apiv1alpha1.Config{}
 	if err := r.Get(ctx, req.NamespacedName, config); err != nil {
-		log.Log.Info("Unable to load Config object, the Config object was probably deleted")
+		log.Log.Info("ConfigController - Unable to load Config object, the Config object was probably deleted")
 		return ctrl.Result{}, err
 	}
 
@@ -68,27 +68,27 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// List all certificates in the Azure Key Vault to test Config
 	pager := clientCertificate.NewListCertificatesPager(nil)
 
-	log.Log.Info("Testing Config by listing certificates in the Azure Key Vault: ")
+	log.Log.Info("ConfigController - Testing Config by listing certificates in the Azure Key Vault: ")
 	for pager.More() {
 		page, err := pager.NextPage(context.Background())
 		if err != nil {
-			log.Log.Error(err, "Unable to list certificates in the Azure Key Vault, invalid Config settings")
+			log.Log.Error(err, "ConfigController - Unable to list certificates in the Azure Key Vault, invalid Config settings")
 			config.Status.ConfigStatus = "Failed"
 			config.Status.ConfigStatusMessage = "Unable to list certificates in the Azure Key Vault, invalid Config settings. Error: " + err.Error()
 			if err := r.Status().Update(ctx, config); err != nil {
-				log.Log.Error(err, "Failed to update Config status")
+				log.Log.Error(err, "ConfigController - Failed to update Config status")
 			}
 			return ctrl.Result{}, err
 		}
 		for _, cert := range page.Value {
-			log.Log.Info("Certificate: " + cert.ID.Name())
+			log.Log.Info("ConfigController - Certificate Found in Azure Key Vault: " + cert.ID.Name())
 		}
 	}
 
 	config.Status.ConfigStatus = "Success"
 	config.Status.ConfigStatusMessage = "Successfully listed certificates in the Azure Key Vault"
 	if err := r.Status().Update(ctx, config); err != nil {
-		log.Log.Error(err, "Failed to update Config status")
+		log.Log.Error(err, "ConfigController - Failed to update Config status")
 	}
 
 	return ctrl.Result{}, nil
@@ -104,7 +104,7 @@ func LoadConfig(ctx context.Context, client client.Client) (*apiv1alpha1.Config,
 	noNamespaceConfig := false
 	// list all apiv1alpha1.Config from the current namespace
 	if err := client.List(ctx, &configs); err != nil {
-		log.Log.Error(err, "Unable to list Configs in the current namespace")
+		log.Log.Error(err, "ConfigController - Unable to list Configs in the current namespace")
 		noNamespaceConfig = true
 		// return &config, err
 	} else {
@@ -113,7 +113,7 @@ func LoadConfig(ctx context.Context, client client.Client) (*apiv1alpha1.Config,
 		} else {
 			// Check if configs has more than one object
 			if len(configs.Items) > 1 {
-				log.Log.Info("More than one config.api.syncsecretakv.io object found for the current namespace, using the first object and ignoring the rest.")
+				log.Log.Info("ConfigController - More than one config.api.syncsecretakv.io object found for the current namespace, using the first object and ignoring the rest.")
 				config = configs.Items[0]
 			} else {
 				config = configs.Items[0]
@@ -123,17 +123,17 @@ func LoadConfig(ctx context.Context, client client.Client) (*apiv1alpha1.Config,
 
 	if noNamespaceConfig {
 		if err := client.List(ctx, &clusterConfigs); err != nil {
-			log.Log.Error(err, "Unable to list ClusterConfig in the Cluster")
+			log.Log.Error(err, "ConfigController - Unable to list ClusterConfig in the Cluster")
 			return nil, err
 		} else {
 			if len(clusterConfigs.Items) == 0 {
-				log.Log.Info("No Namespace Config found or ClusterConfig in the cluster. Do nothing.")
+				log.Log.Info("ConfigController - No Namespace Config found or ClusterConfig in the cluster. Do nothing.")
 				err := errors.New("no namespace nonfig found or nlusterconfig in the cluster, do nothing")
 				return nil, err
 			}
 
 			if len(clusterConfigs.Items) > 1 {
-				log.Log.Info("More than one clusterconfig.api.syncsecretakv.io object found in the cluster, using the first object and ignoring the rest.")
+				log.Log.Info("ConfigController - More than one clusterconfig.api.syncsecretakv.io object found in the cluster, using the first object and ignoring the rest.")
 				//config = configs.Items[0]
 				config = *ConvertToConfig(&clusterConfigs.Items[0])
 			} else {

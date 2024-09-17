@@ -45,6 +45,9 @@ type ClusterConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	FilterMatchingAnnotations map[string]string `json:"filterMatchingAnnotations"`
 
+	// +kubebuilder:validation:Optional
+	FilterMatchingNamespace []string `json:"filterMatchingNamespace"`
+
 	// +kubebuilder:default:=true
 	AllowAzKeyVaultCertificateDeletion bool `json:"allowAzKeyVaultCertificateDeletion"`
 }

@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azcertificates"
 	"github.com/welasco/syncsecretakv/api/api/v1alpha1"
@@ -60,7 +61,7 @@ type SyncSecretAKVReconciler struct {
 func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	log.Log.Info("Reconciling SyncSecretAKV: " + req.NamespacedName.Name)
+	log.Log.Info("SyncSecretAKVController - Reconciling SyncSecretAKV: " + req.NamespacedName.Name)
 	azKeyVaultCertificateName := req.NamespacedName.Namespace + "-" + req.NamespacedName.Name
 
 	// TODO(user): your logic here
@@ -69,14 +70,14 @@ func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// LoadConfig function is defined in the api package at internal/controller/api/config_controller.go
 	config, err := LoadConfig(ctx, r.Client)
 	if err != nil {
-		log.Log.Error(err, "Config not found. Unable to cind a Config in namespace: "+req.NamespacedName.Namespace+". Unable to find ClusterConfig in the cluster.")
+		log.Log.Error(err, "SyncSecretAKVController - Config not found. Unable to cind a Config in namespace: "+req.NamespacedName.Namespace+". Unable to find ClusterConfig in the cluster.")
 		return ctrl.Result{}, err
 	}
 
 	syncSecretAKV := &apiv1alpha1.SyncSecretAKV{}
 	if err := r.Get(ctx, req.NamespacedName, syncSecretAKV); err != nil && errors.IsNotFound(err) {
-		//log.Log.Error(err, "Unable to fetch SyncSecretAKV, resource was probably deleted")
-		log.Log.Info("Unable to fetch SyncSecretAKV, resource was probably deleted. SyncSecretAKV: " + req.NamespacedName.Name + ", Namespace: " + req.NamespacedName.Namespace)
+		//log.Log.Error(err, "SyncSecretAKVController - Unable to fetch SyncSecretAKV, resource was probably deleted")
+		log.Log.Info("SyncSecretAKVController - Unable to fetch SyncSecretAKV, resource was probably deleted. SyncSecretAKV: " + req.NamespacedName.Name + ", Namespace: " + req.NamespacedName.Namespace)
 		DeleteAzKeyVaultCertificate(config, azKeyVaultCertificateName)
 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -84,12 +85,12 @@ func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	secret := &corev1.Secret{}
 	if err := r.Get(ctx, req.NamespacedName, secret); err != nil && errors.IsNotFound(err) {
-		log.Log.Info("Unable to fetch Secret, resource was probably deleted. Secret: " + req.NamespacedName.Name + ", Namespace: " + req.NamespacedName.Namespace)
-		log.Log.Info("Deleting corresponding SyncSecretAKV: " + syncSecretAKV.Name)
+		log.Log.Info("SyncSecretAKVController - Unable to fetch Secret, resource was probably deleted. Secret: " + req.NamespacedName.Name + ", Namespace: " + req.NamespacedName.Namespace)
+		log.Log.Info("SyncSecretAKVController - Deleting corresponding SyncSecretAKV: " + syncSecretAKV.Name)
 		if err := r.Delete(ctx, syncSecretAKV); err != nil {
-			log.Log.Error(err, "Unable to delete SyncSecretAKV")
+			log.Log.Error(err, "SyncSecretAKVController - Unable to delete SyncSecretAKV")
 		}
-		log.Log.Info("Successfully Deleted SyncSecretAKV: " + syncSecretAKV.Name)
+		log.Log.Info("SyncSecretAKVController - Successfully Deleted SyncSecretAKV: " + syncSecretAKV.Name)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -98,37 +99,37 @@ func (r *SyncSecretAKVReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Need to check the revision of the secret to determine if the certificate needs to be updated
 	if syncSecretAKV.Spec.SecretResourceVersion != syncSecretAKV.Spec.SyncSecretAKVResourceVersion {
 
-		log.Log.Info("Importing or Updating Azure Key Vault Certificate: " + azKeyVaultCertificateName)
+		log.Log.Info("SyncSecretAKVController - Importing or Updating Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 		err = ImportOrUpdateAzKeyVaultCertificate(config, azKeyVaultCertificateName, secret)
 		if err != nil {
-			log.Log.Error(err, "Failed to import or update certificate into Azure Key Vault")
+			log.Log.Error(err, "SyncSecretAKVController - Failed to import or update certificate into Azure Key Vault")
 
 			// Update SyncSecretAKV Status
 			syncSecretAKV.Status.SyncStatus = "Failed"
 			syncSecretAKV.Status.SyncStatusMessage = "Failed to import or update certificate into Azure Key Vault. Error: " + err.Error()
 			if err := r.Status().Update(ctx, syncSecretAKV); err != nil {
-				log.Log.Error(err, "Failed to update SyncSecretAKV status")
+				log.Log.Error(err, "SyncSecretAKVController - Failed to update SyncSecretAKV status")
 			}
 			return ctrl.Result{}, nil
 		}
 
 		syncSecretAKV.Spec.SyncSecretAKVResourceVersion = syncSecretAKV.Spec.SecretResourceVersion
 		if err := r.Update(ctx, syncSecretAKV); err != nil {
-			log.Log.Error(err, "Failed to update SyncSecretAKV")
+			log.Log.Error(err, "SyncSecretAKVController - Failed to update SyncSecretAKV")
 			return ctrl.Result{}, nil
 		}
 
-		log.Log.Info("Successfuly imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName)
+		log.Log.Info("SyncSecretAKVController - Successfuly imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 
 		// Update SyncSecretAKV Status
 		syncSecretAKV.Status.SyncStatus = "Success"
 		syncSecretAKV.Status.SyncStatusMessage = "Successfully imported or updated Azure Key Vault Certificate: " + azKeyVaultCertificateName
 		if err := r.Status().Update(ctx, syncSecretAKV); err != nil {
-			log.Log.Error(err, "Failed to update SyncSecretAKV status")
+			log.Log.Error(err, "SyncSecretAKVController - Failed to update SyncSecretAKV status")
 		}
 
 	} else {
-		log.Log.Info("Azure Key Vault Certificate is up to date: " + azKeyVaultCertificateName)
+		log.Log.Info("SyncSecretAKVController - Azure Key Vault Certificate is up to date: " + azKeyVaultCertificateName)
 	}
 
 	return ctrl.Result{}, nil
@@ -141,17 +142,17 @@ func ConvertToPkcs8PEM(privKey *string) string {
 	// Decode the PEM block
 	block, _ := pem.Decode(bytePrivKey)
 	if block == nil || block.Type != "RSA PRIVATE KEY" {
-		log.Log.Info("Failed to decode PEM block containing RSA private key")
+		log.Log.Info("SyncSecretAKVController - Failed to decode PEM block containing RSA private key")
 	}
 	// Parse the RSA private key
 	rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		log.Log.Error(err, "Error parsing RSA private key")
+		log.Log.Error(err, "SyncSecretAKVController - Error parsing RSA private key")
 	}
 	// Convert the RSA private key to PKCS#8 format
 	pkcs8PrivateKey, err := x509.MarshalPKCS8PrivateKey(rsaPrivateKey)
 	if err != nil {
-		log.Log.Error(err, "Error converting to PKCS#8")
+		log.Log.Error(err, "SyncSecretAKVController - Error converting to PKCS#8")
 	}
 
 	// Create a PEM block with the PKCS#8 private key
@@ -161,7 +162,7 @@ func ConvertToPkcs8PEM(privKey *string) string {
 	}
 	// Encode the PKCS#8 private key to PEM format
 	pkcs8PemData := pem.EncodeToMemory(pkcs8PemBlock)
-	log.Log.Info("RSA private key successfully converted to PKCS#8 format")
+	log.Log.Info("SyncSecretAKVController - RSA private key successfully converted to PKCS#8 format")
 
 	return string(pkcs8PemData)
 
@@ -169,7 +170,7 @@ func ConvertToPkcs8PEM(privKey *string) string {
 
 func DeleteAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertificateName string) error {
 
-	log.Log.Info("Deleting Azure Key Vault Certificate")
+	log.Log.Info("SyncSecretAKVController - Deleting Azure Key Vault Certificate")
 
 	err := error(nil)
 	// Create Azure Credential
@@ -180,26 +181,41 @@ func DeleteAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertifica
 		//Delete Certificate
 		_, err := clientCertificate.DeleteCertificate(context.TODO(), azKeyVaultCertificateName, nil)
 		if err != nil {
-			log.Log.Error(err, "Failed to delete certificate from Azure Key Vault")
+			log.Log.Error(err, "SyncSecretAKVController - Failed to delete certificate from Azure Key Vault")
 		}
-		log.Log.Info("Successfuly deleted Azure Key Vault Certificate: " + azKeyVaultCertificateName)
+		log.Log.Info("SyncSecretAKVController - Successfuly deleted Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 
 		// Sleep for 20 seconds to allow the certificate to be purged
-		log.Log.Info("Sleeping for 20 seconds to allow the certificate to be purged")
+		log.Log.Info("SyncSecretAKVController - Sleeping for 20 seconds to allow the certificate to be purged")
 		time.Sleep(20 * time.Second)
 
 		//Purge Certificate
 		_, err = clientCertificate.PurgeDeletedCertificate(context.TODO(), azKeyVaultCertificateName, nil)
 		if err != nil {
-			log.Log.Error(err, "Failed to purge certificate from Azure Key Vault")
+			log.Log.Error(err, "SyncSecretAKVController - Failed to purge certificate from Azure Key Vault")
 		}
-		log.Log.Info("Successfuly purged Azure Key Vault Certificate: " + azKeyVaultCertificateName)
+		log.Log.Info("SyncSecretAKVController - Successfuly purged Azure Key Vault Certificate: " + azKeyVaultCertificateName)
 	}
 
 	return err
 }
 
 func NewAzKeyVaultClientOld(config *v1alpha1.Config) *azcertificates.Client {
+
+	// if reflect.TypeOf(config).String() == "*v1alpha1.ClusterConfig" {
+	// 	log.Log.Info("SyncSecretAKVController - Config Type: " + reflect.TypeOf(config).String())
+	// 	err := error(nil)
+	// 	newConfig, err = convertToConfig(config)
+	// 	if err != nil {
+	// 		log.Log.Error(err, "Failed to convert to Config")
+	// 	}
+	// } else {
+	// 	err := error(nil)
+	// 	newConfig, err = convertToConfig(config)
+	// 	if err != nil {
+	// 		log.Log.Error(err, "Failed to convert to Config")
+	// 	}
+	// }
 
 	keyVaultUrl := config.Spec.AzKeyVaultURL
 
@@ -239,13 +255,13 @@ func NewAzKeyVaultClientOld(config *v1alpha1.Config) *azcertificates.Client {
 	// Implement support for Workload Identity, Managed Identity, Service Principal, and Client Secret
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		log.Log.Error(err, "Failed to obtain a credential")
+		log.Log.Error(err, "SyncSecretAKVController - Failed to obtain a credential")
 	}
 
 	//Establish a connection to the Key Vault clientSecret
 	clientCertificate, err := azcertificates.NewClient(keyVaultUrl, cred, nil)
 	if err != nil {
-		log.Log.Error(err, "Failed to create a client connection to Azure Key Vault")
+		log.Log.Error(err, "SyncSecretAKVController - Failed to create a client connection to Azure Key Vault")
 	}
 	return clientCertificate
 }
@@ -261,22 +277,9 @@ func NewAzKeyVaultClientConfig(config *v1alpha1.Config) *azcertificates.Client {
 func newAzKeyVaultClient(clusterConfig *v1alpha1.ClusterConfig, config *v1alpha1.Config) *azcertificates.Client {
 
 	var newConfig *v1alpha1.Config
-	// if reflect.TypeOf(config).String() == "*v1alpha1.ClusterConfig" {
-	// 	log.Log.Info("Config Type: " + reflect.TypeOf(config).String())
-	// 	err := error(nil)
-	// 	newConfig, err = convertToConfig(config)
-	// 	if err != nil {
-	// 		log.Log.Error(err, "Failed to convert to Config")
-	// 	}
-	// } else {
-	// 	err := error(nil)
-	// 	newConfig, err = convertToConfig(config)
-	// 	if err != nil {
-	// 		log.Log.Error(err, "Failed to convert to Config")
-	// 	}
-	// }
+	var cred azcore.TokenCredential
+
 	if clusterConfig != nil {
-		//newConfig = &v1alpha1.Config{}
 		newConfig = ConvertToConfig(clusterConfig)
 	} else {
 		newConfig = config
@@ -284,49 +287,32 @@ func newAzKeyVaultClient(clusterConfig *v1alpha1.ClusterConfig, config *v1alpha1
 
 	keyVaultUrl := newConfig.Spec.AzKeyVaultURL
 
-	if newConfig.Spec.AzKeyVaultTenantID != "" {
-		// Set the AZURE_TENANT_ID environment variable
-		os.Setenv("AZURE_TENANT_ID", newConfig.Spec.AzKeyVaultTenantID)
+	if newConfig.Spec.AzKeyVaultClientSecret != "" && newConfig.Spec.AzKeyVaultClientID != "" {
+		var err error
+		cred, err = azidentity.NewClientSecretCredential(newConfig.Spec.AzKeyVaultTenantID, newConfig.Spec.AzKeyVaultClientID, newConfig.Spec.AzKeyVaultClientSecret, nil)
+		if err != nil {
+			log.Log.Error(err, "SyncSecretAKVController - Failed to obtain a NewClientSecretCredential")
+		}
+
+	} else if newConfig.Spec.AzKeyVaultClientID != "" {
+		clientID := azidentity.ClientID(newConfig.Spec.AzKeyVaultClientID)
+		msiOPtions := azidentity.ManagedIdentityCredentialOptions{ID: &clientID}
+		var err error
+		cred, err = azidentity.NewManagedIdentityCredential(&msiOPtions)
+		if err != nil {
+			log.Log.Error(err, "SyncSecretAKVController - Failed to obtain a NewManagedIdentityCredential")
+		}
 	} else {
-		_, exists := os.LookupEnv("AZURE_TENANT_ID")
-		if exists {
-			os.Unsetenv("AZURE_TENANT_ID")
+		var err error
+		cred, err = azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+			log.Log.Error(err, "SyncSecretAKVController - Failed to obtain a NewDefaultAzureCredential")
 		}
 	}
 
-	if newConfig.Spec.AzKeyVaultClientID != "" {
-		// Set the AZURE_CLIENT_ID environment variable
-		os.Setenv("AZURE_CLIENT_ID", newConfig.Spec.AzKeyVaultClientID)
-	} else {
-		_, exists := os.LookupEnv("AZURE_CLIENT_ID")
-		if exists {
-			os.Unsetenv("AZURE_CLIENT_ID")
-		}
-	}
-
-	if newConfig.Spec.AzKeyVaultClientSecret != "" {
-		// Set the AZURE_CLIENT_SECRET environment variable
-		os.Setenv("AZURE_CLIENT_SECRET", newConfig.Spec.AzKeyVaultClientSecret)
-	} else {
-		_, exists := os.LookupEnv("AZURE_CLIENT_SECRET")
-		if exists {
-			os.Unsetenv("AZURE_CLIENT_SECRET")
-		}
-	}
-
-	// Need to implement a logic to set the required environment variables for the Azure SDK DefaultCredential
-
-	// Create Azure Credential
-	// Implement support for Workload Identity, Managed Identity, Service Principal, and Client Secret
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
-	if err != nil {
-		log.Log.Error(err, "Failed to obtain a credential")
-	}
-
-	//Establish a connection to the Key Vault clientSecret
 	clientCertificate, err := azcertificates.NewClient(keyVaultUrl, cred, nil)
 	if err != nil {
-		log.Log.Error(err, "Failed to create a client connection to Azure Key Vault")
+		log.Log.Error(err, "SyncSecretAKVController - Failed to create a client connection to Azure Key Vault")
 	}
 	return clientCertificate
 }
@@ -341,6 +327,7 @@ func ConvertToConfig(clusterConfig *v1alpha1.ClusterConfig) *v1alpha1.Config {
 	config.Spec.FilterMatchingLabels = clusterConfig.Spec.FilterMatchingLabels
 	config.Spec.FilterMatchingAnnotations = clusterConfig.Spec.FilterMatchingAnnotations
 	config.Spec.AllowAzKeyVaultCertificateDeletion = clusterConfig.Spec.AllowAzKeyVaultCertificateDeletion
+	config.Spec.FilterMatchingNamespace = clusterConfig.Spec.FilterMatchingNamespace
 
 	return &config
 }
@@ -365,7 +352,7 @@ func convertToConfig(data interface{}) (*v1alpha1.Config, error) {
 
 func ImportOrUpdateAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertificateName string, secret *corev1.Secret) error {
 
-	log.Log.Info("Importing or Updating Azure Key Vault Certificate")
+	log.Log.Info("SyncSecretAKVController - Importing or Updating Azure Key Vault Certificate")
 
 	// Create Azure Credential
 	clientCertificate := NewAzKeyVaultClientConfig(config)
@@ -375,8 +362,8 @@ func ImportOrUpdateAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultC
 
 	// Need to take care of the ca.crt in case it exist
 	for key, value := range secret.Data {
-		//log.Log.Info("Key: ", key, "\n", "Value: ", string(value))
-		log.Log.Info("Secret Key: " + key)
+		//log.Log.Info("SyncSecretAKVController - Key: ", key, "\n", "Value: ", string(value))
+		log.Log.Info("SyncSecretAKVController - Secret Key: " + key)
 		if key == "tls.crt" {
 			pubKey = string(value)
 		}
@@ -391,7 +378,7 @@ func ImportOrUpdateAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultC
 	//Import Certificate
 	_, err := clientCertificate.ImportCertificate(context.TODO(), azKeyVaultCertificateName, azcertificates.ImportCertificateParameters{Base64EncodedCertificate: &fullCert}, nil)
 	if err != nil {
-		log.Log.Error(err, "Failed to import or update certificate into Azure Key Vault")
+		log.Log.Error(err, "SyncSecretAKVController - Failed to import or update certificate into Azure Key Vault")
 	}
 	return err
 }

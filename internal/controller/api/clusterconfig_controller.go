@@ -50,16 +50,16 @@ func (r *ClusterConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	_ = log.FromContext(ctx)
 
 	// TODO(user): your logic here
-	log.Log.Info("Reconciling ClusterConfig: " + req.Name + " in namespace: " + req.Namespace)
+	log.Log.Info("ClusterConfigController - Reconciling ClusterConfig: " + req.Name + " in namespace: " + req.Namespace)
 
 	// need to write a code to access clusterConfig which is a Cluster Scoped resource
 	clusterConfig := &apiv1alpha1.ClusterConfig{}
 	//if err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: ""}, clusterConfig); err != nil {
 	if err := r.Get(ctx, req.NamespacedName, clusterConfig); err != nil {
-		log.Log.Info("Unable to load ClusterConfig object, the Config object was probably deleted")
+		log.Log.Info("ClusterConfigController - Unable to load ClusterConfig object, the Config object was probably deleted")
 		return ctrl.Result{}, nil
 	}
-	log.Log.Info("ClusterConfig: " + clusterConfig.Name + " resourceVersion: " + clusterConfig.ResourceVersion)
+	log.Log.Info("ClusterConfigController - ClusterConfig: " + clusterConfig.Name + " resourceVersion: " + clusterConfig.ResourceVersion)
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Test if the config is valid by accessing the Azure Key Vault
@@ -69,27 +69,27 @@ func (r *ClusterConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// List all certificates in the Azure Key Vault to test Config
 	pager := clientCertificate.NewListCertificatesPager(nil)
 
-	log.Log.Info("Testing Config by listing certificates in the Azure Key Vault: ")
+	log.Log.Info("ClusterConfigController - Testing Config by listing certificates in the Azure Key Vault: ")
 	for pager.More() {
 		page, err := pager.NextPage(context.Background())
 		if err != nil {
-			log.Log.Error(err, "Unable to list certificates in the Azure Key Vault, invalid Config settings")
+			log.Log.Error(err, "ClusterConfigController - Unable to list certificates in the Azure Key Vault, invalid Config settings")
 			clusterConfig.Status.ConfigStatus = "Failed"
 			clusterConfig.Status.ConfigStatusMessage = "Unable to list certificates in the Azure Key Vault, invalid Config settings. Error: " + err.Error()
 			if err := r.Status().Update(ctx, clusterConfig); err != nil {
-				log.Log.Error(err, "Failed to update Config status")
+				log.Log.Error(err, "ClusterConfigController - Failed to update Config status")
 			}
 			return ctrl.Result{}, err
 		}
 		for _, cert := range page.Value {
-			log.Log.Info("Certificate: " + cert.ID.Name())
+			log.Log.Info("ClusterConfigController - Certificate Found in Azure Key Vault: " + cert.ID.Name())
 		}
 	}
 
 	clusterConfig.Status.ConfigStatus = "Success"
 	clusterConfig.Status.ConfigStatusMessage = "Successfully listed certificates in the Azure Key Vault"
 	if err := r.Status().Update(ctx, clusterConfig); err != nil {
-		log.Log.Error(err, "Failed to update Config status")
+		log.Log.Error(err, "ClusterConfigController - Failed to update Config status")
 	}
 
 	return ctrl.Result{}, nil
