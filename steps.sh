@@ -29,12 +29,24 @@ kubebuilder create api --group api --version v1alpha1 --kind SyncSecretAKV
 # Create Custom API for a Custom Resource
 kubebuilder create api --group api --version v1alpha1 --kind Config
 
+# Create Custom API Cluster-scoped for Global Configuration
+kubebuilder create api --group api --version v1alpha1 --kind ClusterConfig --namespaced=false
+
 # Kubebuilder has the ability to auto generate a CRD and all definitions for the API
 # You have to install them in the cluster
+make manifests
 make install
 
 # Once everything is ready to be published run the docker build
-IMG=welasco/syncsecretakv make docker-build
+#IMG=welasco/syncsecretakv make docker-build
+# Build Docker Images
+make docker-build docker-push IMG=welasco/controller-syncsecretakv:latest
 
-# Create Custom API Cluster-scoped for Global Configuration
-kubebuilder create api --group api --version v1alpha1 --kind ClusterConfig --namespaced=false
+# Deploy the controller
+make deploy IMG=welasco/controller-syncsecretakv:latest
+
+# Uninstall the controller
+make undeploy
+
+# Generate full deployment file
+kustomize build config/default > deploy-controller.yaml

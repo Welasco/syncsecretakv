@@ -287,7 +287,8 @@ func newAzKeyVaultClient(clusterConfig *v1alpha1.ClusterConfig, config *v1alpha1
 
 	keyVaultUrl := newConfig.Spec.AzKeyVaultURL
 
-	if newConfig.Spec.AzKeyVaultClientSecret != "" && newConfig.Spec.AzKeyVaultClientID != "" {
+	if newConfig.Spec.AzKeyVaultClientSecret != "" && newConfig.Spec.AzKeyVaultClientID != "" && newConfig.Spec.AzKeyVaultTenantID != "" {
+		log.Log.Info("SyncSecretAKVController - Using Client Secret for Azure Key Vault Authentication with TenantID: " + newConfig.Spec.AzKeyVaultTenantID + ", ClientID: " + newConfig.Spec.AzKeyVaultClientID)
 		var err error
 		cred, err = azidentity.NewClientSecretCredential(newConfig.Spec.AzKeyVaultTenantID, newConfig.Spec.AzKeyVaultClientID, newConfig.Spec.AzKeyVaultClientSecret, nil)
 		if err != nil {
@@ -295,6 +296,7 @@ func newAzKeyVaultClient(clusterConfig *v1alpha1.ClusterConfig, config *v1alpha1
 		}
 
 	} else if newConfig.Spec.AzKeyVaultClientID != "" {
+		log.Log.Info("SyncSecretAKVController - Using Managed Identity for Azure Key Vault Authentication with ClientID: " + newConfig.Spec.AzKeyVaultClientID)
 		clientID := azidentity.ClientID(newConfig.Spec.AzKeyVaultClientID)
 		msiOPtions := azidentity.ManagedIdentityCredentialOptions{ID: &clientID}
 		var err error
@@ -303,6 +305,7 @@ func newAzKeyVaultClient(clusterConfig *v1alpha1.ClusterConfig, config *v1alpha1
 			log.Log.Error(err, "SyncSecretAKVController - Failed to obtain a NewManagedIdentityCredential")
 		}
 	} else {
+		log.Log.Info("SyncSecretAKVController - Using Default Azure Credential for Azure Key Vault Authentication")
 		var err error
 		cred, err = azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
