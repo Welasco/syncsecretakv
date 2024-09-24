@@ -1,0 +1,238 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
+  name: clusterconfigs.api.syncsecretakv.io
+spec:
+  group: api.syncsecretakv.io
+  names:
+    kind: ClusterConfig
+    listKind: ClusterConfigList
+    plural: clusterconfigs
+    singular: clusterconfig
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ClusterConfig is the Schema for the clusterconfigs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ClusterConfigSpec defines the desired state of ClusterConfig
+            properties:
+              allowAzKeyVaultCertificateDeletion:
+                default: true
+                type: boolean
+              azKeyVaultClientSecret:
+                type: string
+              azKeyVaultTenantId:
+                type: string
+              azKeyVaultURL:
+                type: string
+              azKeyvaultClientId:
+                type: string
+              filterMatchingAnnotations:
+                additionalProperties:
+                  type: string
+                type: object
+              filterMatchingLabels:
+                additionalProperties:
+                  type: string
+                type: object
+              filterMatchingNamespace:
+                items:
+                  type: string
+                type: array
+            required:
+            - allowAzKeyVaultCertificateDeletion
+            - azKeyVaultURL
+            type: object
+          status:
+            description: ClusterConfigStatus defines the observed state of ClusterConfig
+            properties:
+              syncStatus:
+                type: string
+              syncStatusMessage:
+                type: string
+            required:
+            - syncStatus
+            - syncStatusMessage
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
+  name: configs.api.syncsecretakv.io
+spec:
+  group: api.syncsecretakv.io
+  names:
+    kind: Config
+    listKind: ConfigList
+    plural: configs
+    singular: config
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Config is the Schema for the configs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ConfigSpec defines the desired state of Config
+            properties:
+              allowAzKeyVaultCertificateDeletion:
+                default: true
+                type: boolean
+              azKeyVaultClientSecret:
+                type: string
+              azKeyVaultTenantId:
+                type: string
+              azKeyVaultURL:
+                type: string
+              azKeyvaultClientId:
+                type: string
+              filterMatchingAnnotations:
+                additionalProperties:
+                  type: string
+                type: object
+              filterMatchingLabels:
+                additionalProperties:
+                  type: string
+                type: object
+              filterMatchingNamespace:
+                items:
+                  type: string
+                type: array
+            required:
+            - allowAzKeyVaultCertificateDeletion
+            - azKeyVaultURL
+            type: object
+          status:
+            description: ConfigStatus defines the observed state of Config
+            properties:
+              syncStatus:
+                type: string
+              syncStatusMessage:
+                type: string
+            required:
+            - syncStatus
+            - syncStatusMessage
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
+  name: syncsecretakvs.api.syncsecretakv.io
+spec:
+  group: api.syncsecretakv.io
+  names:
+    kind: SyncSecretAKV
+    listKind: SyncSecretAKVList
+    plural: syncsecretakvs
+    singular: syncsecretakv
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: SyncSecretAKV is the Schema for the syncsecretakvs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SyncSecretAKVSpec defines the desired state of SyncSecretAKV
+            properties:
+              secretName:
+                type: string
+              secretResourceVersion:
+                type: string
+              syncSecretResourceVersion:
+                type: string
+            required:
+            - secretName
+            - secretResourceVersion
+            - syncSecretResourceVersion
+            type: object
+          status:
+            description: SyncSecretAKVStatus defines the observed state of SyncSecretAKV
+            properties:
+              syncStatus:
+                description: |-
+                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                type: string
+              syncStatusMessage:
+                type: string
+            required:
+            - syncStatus
+            - syncStatusMessage
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

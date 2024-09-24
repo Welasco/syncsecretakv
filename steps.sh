@@ -50,3 +50,18 @@ make undeploy
 
 # Generate full deployment file
 kustomize build config/default > deploy-controller.yaml
+
+#######################
+# Creating Helm Chart
+#######################
+# Create Helm Chart
+mkdir charts
+helm create charts/syncsecretakv
+
+# Install Helm Chart
+cd charts
+helm install syncsecretakv syncsecretakv
+helm install syncsecretakv syncsecretakv --values syncsecretakv/values.yaml
+
+# Uninstall Helm Chart
+helm uninstall syncsecretakv

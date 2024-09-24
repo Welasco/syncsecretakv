@@ -18,7 +18,6 @@ package api
 
 import (
 	"context"
-	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -198,72 +197,6 @@ func DeleteAzKeyVaultCertificate(config *apiv1alpha1.Config, azKeyVaultCertifica
 	}
 
 	return err
-}
-
-func NewAzKeyVaultClientOld(config *v1alpha1.Config) *azcertificates.Client {
-
-	// if reflect.TypeOf(config).String() == "*v1alpha1.ClusterConfig" {
-	// 	log.Log.Info("SyncSecretAKVController - Config Type: " + reflect.TypeOf(config).String())
-	// 	err := error(nil)
-	// 	newConfig, err = convertToConfig(config)
-	// 	if err != nil {
-	// 		log.Log.Error(err, "Failed to convert to Config")
-	// 	}
-	// } else {
-	// 	err := error(nil)
-	// 	newConfig, err = convertToConfig(config)
-	// 	if err != nil {
-	// 		log.Log.Error(err, "Failed to convert to Config")
-	// 	}
-	// }
-
-	keyVaultUrl := config.Spec.AzKeyVaultURL
-
-	if config.Spec.AzKeyVaultTenantID != "" {
-		// Set the AZURE_TENANT_ID environment variable
-		os.Setenv("AZURE_TENANT_ID", config.Spec.AzKeyVaultTenantID)
-	} else {
-		_, exists := os.LookupEnv("AZURE_TENANT_ID")
-		if exists {
-			os.Unsetenv("AZURE_TENANT_ID")
-		}
-	}
-
-	if config.Spec.AzKeyVaultClientID != "" {
-		// Set the AZURE_CLIENT_ID environment variable
-		os.Setenv("AZURE_CLIENT_ID", config.Spec.AzKeyVaultClientID)
-	} else {
-		_, exists := os.LookupEnv("AZURE_CLIENT_ID")
-		if exists {
-			os.Unsetenv("AZURE_CLIENT_ID")
-		}
-	}
-
-	if config.Spec.AzKeyVaultClientSecret != "" {
-		// Set the AZURE_CLIENT_SECRET environment variable
-		os.Setenv("AZURE_CLIENT_SECRET", config.Spec.AzKeyVaultClientSecret)
-	} else {
-		_, exists := os.LookupEnv("AZURE_CLIENT_SECRET")
-		if exists {
-			os.Unsetenv("AZURE_CLIENT_SECRET")
-		}
-	}
-
-	// Need to implement a logic to set the required environment variables for the Azure SDK DefaultCredential
-
-	// Create Azure Credential
-	// Implement support for Workload Identity, Managed Identity, Service Principal, and Client Secret
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
-	if err != nil {
-		log.Log.Error(err, "SyncSecretAKVController - Failed to obtain a credential")
-	}
-
-	//Establish a connection to the Key Vault clientSecret
-	clientCertificate, err := azcertificates.NewClient(keyVaultUrl, cred, nil)
-	if err != nil {
-		log.Log.Error(err, "SyncSecretAKVController - Failed to create a client connection to Azure Key Vault")
-	}
-	return clientCertificate
 }
 
 func NewAzKeyVaultClientClusterConfig(clusterConfig *v1alpha1.ClusterConfig) *azcertificates.Client {

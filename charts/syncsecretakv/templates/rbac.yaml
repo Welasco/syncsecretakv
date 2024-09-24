@@ -1,0 +1,328 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-leader-election-role
+  namespace: syncsecretakv-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-api-clusterconfig-editor-role
+rules:
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - clusterconfigs/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-api-clusterconfig-viewer-role
+rules:
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - clusterconfigs/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-api-config-editor-role
+rules:
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - configs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - configs/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-api-config-viewer-role
+rules:
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - configs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - configs/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-api-syncsecretakv-editor-role
+rules:
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - syncsecretakvs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - syncsecretakvs/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-api-syncsecretakv-viewer-role
+rules:
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - syncsecretakvs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - syncsecretakvs/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: syncsecretakv-manager-role
+rules:
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - clusterconfigs
+  - configs
+  - syncsecretakvs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - clusterconfigs/finalizers
+  - configs/finalizers
+  - syncsecretakvs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - api.syncsecretakv.io
+  resources:
+  - clusterconfigs/status
+  - configs/status
+  - syncsecretakvs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - secrets/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: syncsecretakv-metrics-auth-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: syncsecretakv-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-leader-election-rolebinding
+  namespace: syncsecretakv-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: syncsecretakv-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: syncsecretakv-controller-manager
+  namespace: syncsecretakv-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: syncsecretakv
+  name: syncsecretakv-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: syncsecretakv-manager-role
+subjects:
+- kind: ServiceAccount
+  name: syncsecretakv-controller-manager
+  namespace: syncsecretakv-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: syncsecretakv-metrics-auth-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: syncsecretakv-metrics-auth-role
+subjects:
+- kind: ServiceAccount
+  name: syncsecretakv-controller-manager
+  namespace: syncsecretakv-system

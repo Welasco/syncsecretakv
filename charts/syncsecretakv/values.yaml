@@ -1,0 +1,10 @@
+# Default values for syncsecretakv.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Namespace
+namespace: syncsecretakv-system
+
+# Workload Identity
+workloadIdentity:
+  userAssignedClientId: "e7ee740b-1733-401d-8346-d0f80d9cbbeb"
