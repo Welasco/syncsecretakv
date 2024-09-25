@@ -1,114 +1,567 @@
-# syncsecretakv
-// TODO(user): Add simple overview of use/purpose
+# SyncSecretAKV Kubernetes Controller for Synchronizing TLS Secrets to Azure Key Vault
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+This Kubernetes Controller is designed to synchronize TLS Secrets created by Cert-Manager to Azure Key Vault. Cert-Manager is another Kubernetes controller that issues certificates from Let's Encrypt. The primary purpose of this controller is to enable the reuse of Let's Encrypt TLS certificates across various Azure resources, such as Azure Application Gateway and Azure VMs.
+
+## Features
+
+- **Automated Synchronization**: Seamlessly syncs TLS Secrets from Kubernetes to Azure Key Vault.
+- **Cert-Manager Integration**: Works in conjunction with Cert-Manager to manage certificate issuance and renewal.
+- **Azure Resource Compatibility**: Allows Let's Encrypt TLS certificates to be utilized by any Azure resource that supports Azure Key Vault.
+
+## Use Cases
+
+- **Azure Application Gateway**: Secure your web applications with Let's Encrypt certificates stored in Azure Key Vault.
+- **Azure VMs**: Easily manage and deploy TLS certificates to your virtual machines.
 
 ## Getting Started
 
-### Prerequisites
-- go version v1.22.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+1. **Install Cert-Manager**: Ensure Cert-Manager is installed and configured in your Kubernetes cluster.
+2. **Configure Azure Key Vault**: Set up your Azure Key Vault and configure the necessary permissions.
+3. **Deploy the Controller**: Deploy this Kubernetes Controller to your cluster.
+4. **Configuring SyncSecretAKV controller**: The controller will automatically synchronize TLS Secrets from Cert-Manager to Azure Key Vault.
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+## 1. **Install Cert-Manager**
 
-```sh
-make docker-build docker-push IMG=<some-registry>/syncsecretakv:tag
-```
-
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
-
-**Install the CRDs into the cluster:**
+Ensure Cert-Manager is installed and configured in your Kubernetes cluster. You can use the following commands to install Cert-Manager:
 
 ```sh
-make install
+helm repo add jetstack https://charts.jetstack.io --force-update
+helm repo update
+helm install \
+    cert-manager jetstack/cert-manager \
+    --namespace cert-manager \
+    --create-namespace \
+    --version v1.15.3 \
+    --set crds.enabled=true \
+    --set enableCertificateOwnerRef=true
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+**_NOTE:_** The command bove is enabling enableCertificateOwnerRef to allow Cert-manager to delete secrets once Ingress rule is removed.
+
+Let's Encrypt supports Staging and Production environment, staging is used for testing environments and these certificates are not valid.
+
+Create a ClusterIssuer resource to setup Cert-manager to issue certificates from Let's Encrypt using staging environment:
+
+**_NOTE:_** Let's Encrypt use ACME protocol to issue the certificate and prove domain ownership. It supports DNS01 or HTTP01 protocols. The example bellow is for HTTP01. For DNS01 using Azure DNS please review official [AzureDNS Cert-manager](https://cert-manager.io/docs/configuration/acme/dns01/azuredns/) documentation.
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: <email>@<domain><.com>
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+          podTemplate:
+            spec:
+              nodeSelector:
+                "kubernetes.io/os": linux
+```
+
+Create a ClusterIssuer resource to setup Cert-manager to issue certificates from Let's Encrypt using production environment:
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: <email>@<domain><.com>
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+          podTemplate:
+            spec:
+              nodeSelector:
+                "kubernetes.io/os": linux
+```
+
+Once the Cert-manager is configured you can create a Ingress rule in your cluster with a special annotation pointing to the ClusterIssuer you would like to use and Cert-manager will automaticaly issue a Let's Encrypt certificate for you.
+
+Here is a sample application using Ingress rule with cert-manager.io/cluster-issuer annotation to issue a certificate from staging in Let's Encrypt. The yaml definition is creating a namespace called vws and a deployment, service and ingress using the special annotation from Cert-manager.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vws
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vws-app
+  namespace: vws
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vws-app
+  template:
+    metadata:
+      labels:
+        app: vws-app
+    spec:
+      containers:
+      - name: vwsapp
+        image: welasco/nodejsportexhaustion
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vws-service
+  namespace: vws
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+  selector:
+    app: vws-app
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vws-ingress-testcertmanager
+  namespace: vws
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    #cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - www.vwslab.com
+    secretName: vws-secret
+  rules:
+  - host: www.vwslab.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vws-service
+            port:
+              number: 3000
+```
+
+After apply the yaml manifest a new TLS secret with Let's Encrypt certificate will be created in the namespace. The secret name will be the name you have defined as your secretName in Ingress rule:
 
 ```sh
-make deploy IMG=<some-registry>/syncsecretakv:tag
+$ kubectl get secrets -n vws vws-secret
+
+NAME         TYPE                DATA   AGE
+vws-secret   kubernetes.io/tls   2      45h
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+Reference:
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+[Installing Cert-manager with helm](https://cert-manager.io/docs/installation/helm/)
+
+[Deploy cert-manager on Azure Kubernetes Service (AKS) and use Let's Encrypt to sign a certificate for an HTTPS website](https://cert-manager.io/docs/tutorials/getting-started-aks-letsencrypt/)
+
+
+## 2. **Configure Azure Key Vault**
+
+All the steps will be done using Azure Cli but they can also be accomplished using Azure Portal.
+
+Create a new Azure Key Vault if you don't have one already:
 
 ```sh
-kubectl apply -k config/samples/
+AKS="<AKS Name>"
+KEYVAULT_NAME="<Key Vault Name goes here>"
+RG="<Resource Group Name>"
+Location="<Location>"
+az keyvault create `
+    --name $KEYVAULT_NAME `
+    --resource-group $RG `
+    --location $Location `
+    --enable-rbac-authorization
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+Choose your preferable authentication method to allow SyncSecretAKV controller to access Azure Key Vault.
 
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
+<details>
+
+<summary>Using Workload Identity or Managed Identity to access Azure Key Vault</summary>
+
+If you are going to use Workload Identity or Managed Identity in Azure, you have to create a Managed Identity Credential.
+
+**_NOTE:_** Workload Identity requires additional settings to be configured in AKS cluster. Please check [Deploy and configure workload identity on an Azure Kubernetes Service (AKS) cluster](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster)
+
+The command bellow will create a Managed Identity to be used by SyncSecretAKV controller to access Azure Key Vault:
 
 ```sh
-kubectl delete -k config/samples/
+USER_ASSIGNED_IDENTITY_NAME="<Managed Identity Name>"
+KEYVAULT_NAME="<Key Vault Name goes here>"
+RG="<Resource Group Name>"
+Location="<Location>"
+Subscription="<Subscription ID>"
+az identity create `
+    --name $USER_ASSIGNED_IDENTITY_NAME `
+    --resource-group $RG `
+    --location $Location `
+    --subscription $Subscription
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+Create a Role assigment to allow the Managed Identity to manage certificates in the Azure Key Vault:
 
 ```sh
-make uninstall
+KEYVAULT_RESOURCE_ID=(az keyvault show --resource-group $RG --name $KEYVAULT_NAME --query id --output tsv)
+IDENTITY_PRINCIPAL_ID=(az identity show --name $USER_ASSIGNED_IDENTITY_NAME --resource-group $RG --query principalId --output tsv)
+az role assignment create `
+    --assignee-object-id $IDENTITY_PRINCIPAL_ID `
+    --role "Key Vault Certificates Officer" `
+    --scope $KEYVAULT_RESOURCE_ID `
+    --assignee-principal-type ServicePrincipal
 ```
 
-**UnDeploy the controller from the cluster:**
+Optionally but recommended, you should assign the same priviledge to your personal account:
 
 ```sh
-make undeploy
+az role assignment create `
+    --assignee "<Your Account Here Ex: user@domain.com>" `
+    --role "Key Vault Certificates Officer" `
+    --scope $KEYVAULT_RESOURCE_ID `
+    --assignee-principal-type User
 ```
 
-## Project Distribution
+</details>
 
-Following are the steps to build the installer and distribute this project to users.
+<details>
 
-1. Build the installer for the image built and published in the registry:
+<summary>Using Service Principal to access Azure Key Vault</summary>
+
+If running SyncSecretAKV controller in a On-Premises cluster or ARC enabled Kubernestes cluster you must use Service Principal for authentication.
+
+You can create a new Service Principal using the following command:
 
 ```sh
-make build-installer IMG=<some-registry>/syncsecretakv:tag
+ServicePrincipalName="<Service Principal Name Here Ex: SyncSecretAKV-SP>"
+az ad sp create-for-rbac --name $ServicePrincipalName
 ```
 
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
-
-2. Using the installer
-
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
+The create Service Principal command you give you an output, save it because it will be necessary to configure SyncSecretAKV controller:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/syncsecretakv/<tag or branch>/dist/install.yaml
+{
+  "appId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "displayName": "app-yak",
+  "password": "*************************************",
+  "tenant": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+}
 ```
 
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+Create a Role assigment to allow the Service Principal to manage certificates in the Azure Key Vault:
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+```sh
+KEYVAULT_RESOURCE_ID=(az keyvault show --resource-group $RG --name $KEYVAULT_NAME --query id --output tsv)
+az role assignment create `
+    --assignee-object-id "<appId from the previous command>" `
+    --role "Key Vault Certificates Officer" `
+    --scope $KEYVAULT_RESOURCE_ID `
+    --assignee-principal-type ServicePrincipal
+```
 
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+Optionally but recommended, you should assign the same priviledge to your personal account:
 
-## License
+```sh
+az role assignment create `
+    --assignee "<Your Account Here Ex: user@domain.com>" `
+    --role "Key Vault Certificates Officer" `
+    --scope $KEYVAULT_RESOURCE_ID `
+    --assignee-principal-type User
+```
 
-Copyright 2024 welasco.
+</details>
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+## 3. **Deploy the Controller**
 
-    http://www.apache.org/licenses/LICENSE-2.0
+Deploy SyncSecretAKV controller using the commands bellow:
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Add a helm repo to your local helm repositories:
+```sh
+helm repo add syncsecretakv https://welasco.github.io/syncsecretakv
+```
 
+<details>
+
+<summary>Installing SyncSecretAKV controller for Workload Identity</summary>
+
+Install SyncSecretAKV controller for Workload Identity authentication to Azure Key Vault.
+
+```sh
+IDENTITY_PRINCIPAL_ID=(az identity show --name $USER_ASSIGNED_IDENTITY_NAME --resource-group $RG --query principalId --output tsv)
+helm install syncsecretakv syncsecretakv/syncsecretakv \
+    --set namespace=syncsecretakv \
+    --set workloadIdentity.userAssignedClientId=$IDENTITY_PRINCIPAL_ID
+```
+
+</details>
+
+<details>
+
+<summary>Installing SyncSecretAKV controller for Managed Identity or Service Principal</summary>
+
+Install SyncSecretAKV controller for Managed Identity or Service Principal authentication:
+```sh
+helm install syncsecretakv syncsecretakv
+```
+
+After the deployment a new namespace and a few resources will be created. To check if everything looks good run the following command:
+
+```sh
+$ kubectl get -n syncsecretakv-system Deployment,ServiceAccount,Service
+
+NAME                                               READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/syncsecretakv-controller-manager   1/1     1            1           21h
+
+NAME                                              SECRETS   AGE
+serviceaccount/default                            0         21h
+serviceaccount/syncsecretakv-controller-manager   0         21h
+
+NAME                                                       TYPE        CLUSTER-IP        EXTERNAL-IP   PORT(S)    AGE
+service/syncsecretakv-controller-manager-metrics-service   ClusterIP   xxx.xxx.xxx.xxx   <none>        8443/TCP   21h
+```
+
+</details>
+
+## 4. **Configuring SyncSecretAKV controller**
+
+SyncSecretAKV controller can be configure to use Workload Identity, Managed Identity or Service Principal to access Azure Key Vault.
+
+It supports Cluster wide configuration or Namespace configuration.
+
+<details>
+<summary>Workload Identity</summary>
+
+To setup SyncSecretAKV controller to use Workload Identity you must install the controller using an additional option with userAssignedClientId to allow the creation of the controller pod with the required tags and annotaions for Workload Identity. Please refer to the step "Install SyncSecretAKV controller for Workload Identity authentication to Azure Key Vault."
+
+When using Workload Identity the SyncSecretAKV controller only supports one single Federated Managed Identity to access Azure Key Vault. If you require more than one Azure Key Vault (for instance one Azure Key Vault per namespace) you can only use the managed identity defined during the instalation of the controller to allow access in all Azure Key Vaults.
+
+If you have not yet enable AKS to support Workload Identity you can do it using the following command:
+
+```sh
+az aks update \
+    --name $AKS \
+    --resource-group $RG \
+    --enable-oidc-issuer \
+    --enable-workload-identity
+```
+
+Now associate a federated identity with the managed identity that you created earlier. SyncSecretAKV controller will authenticate to Azure using a short lived Kubernetes ServiceAccount token, and it will be able to impersonate the managed identity that you created in the previous step.
+
+```sh
+export SERVICE_ACCOUNT_NAME=syncsecretakv-controller-manager # This is the default Kubernetes ServiceAccount used by the SyncSecretAKV controller.
+export SERVICE_ACCOUNT_NAMESPACE=syncsecretakv-system # This is the default namespace for SyncSecretAKV.
+export SERVICE_ACCOUNT_ISSUER=$(az aks show --resource-group $RG --name $AKS --query "oidcIssuerProfile.issuerUrl" -o tsv)
+az identity federated-credential create \
+  --name "cert-manager" \
+  --identity-name "${USER_ASSIGNED_IDENTITY_NAME}" \
+  --issuer "${SERVICE_ACCOUNT_ISSUER}" \
+  --subject "system:serviceaccount:${SERVICE_ACCOUNT_NAMESPACE}:${SERVICE_ACCOUNT_NAME}"
+```
+
+To setup SyncSecretAKV controller using Workload Identity for the entire cluster create a ClusterConfig resource with your desired configuration:
+
+```yaml
+apiVersion: api.syncsecretakv.io/v1alpha1
+kind: ClusterConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: syncsecretakv
+    app.kubernetes.io/managed-by: kustomize
+  name: clusterconfig-sample
+spec:
+  azKeyVaultURL: "https://<Azure Key Vault name>.vault.azure.net/"
+  allowAzKeyVaultCertificateDeletion: true
+  filterMatchingNamespace:
+    - "vws"
+  # filterMatchingLabels:
+  #   label1: "label1"
+  #   label2: "label2"
+  filterMatchingAnnotations:
+    cert-manager.io/issuer-group: "cert-manager.io"
+  #   label2: "label2"
+```
+
+To setup SyncSecretAKV controller using Workload Identity for a specific namespace create a Config resource with your desired configuration:
+
+```yaml
+apiVersion: api.syncsecretakv.io/v1alpha1
+kind: Config
+metadata:
+  labels:
+    app.kubernetes.io/name: syncsecretakv
+    app.kubernetes.io/managed-by: kustomize
+  name: config-sample
+  namespace: vws
+spec:
+  azKeyVaultURL: "https://<Azure Key Vault name>.vault.azure.net/"
+  allowAzKeyVaultCertificateDeletion: true
+  # filterMatchingLabels:
+  #   label1: "label1"
+  #   label2: "label2"
+  # filterMatchingAnnotations:
+  #   label1: "label1"
+  #   label2: "label2"
+```
+
+</details>
+
+<details>
+<summary>Managed Identity</summary>
+
+To use Managed Identity you have to associate the Managed Identity with all NodePools (VMSS) of AKS Cluster.
+
+You can use the script bellow to associate your Managed Identity to all VMSS (nodepools) of your cluster:
+
+```sh
+managedIdentityResourceId=$(az identity show --name $USER_ASSIGNED_IDENTITY_NAME --resource-group $RG --query id --output tsv)
+nodeResourceGroup=$(az aks show -g eslz-spoke --name eslz-aks --query nodeResourceGroup -o tsv)
+nodepools=$(az aks nodepool list -g eslz-spoke --cluster-name eslz-aks --query "[].name" --output tsv)
+vmssList=$(az vmss list -g $nodeResourceGroup --query "[].name" --output tsv)
+
+for vmss in $vmssList
+do
+    echo $vmss
+    az vmss identity assign -g $nodeResourceGroup -n vmss --identities $managedIdentityResourceId
+done
+```
+
+You can repeat the previous step for all your managed identities in case you are giving one identity per Azure Key Vault.
+
+To setup SyncSecretAKV controller using Managed Identity for the entire cluster create a ClusterConfig resource with your desired configuration:
+
+```yaml
+apiVersion: api.syncsecretakv.io/v1alpha1
+kind: ClusterConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: syncsecretakv
+    app.kubernetes.io/managed-by: kustomize
+  name: clusterconfig-sample
+spec:
+  azKeyVaultURL: "https://<Azure Key Vault name>.vault.azure.net/"
+  azKeyvaultClientId: "<Managed Identity Client ID/appId>"
+  allowAzKeyVaultCertificateDeletion: true
+  filterMatchingNamespace:
+    - "vws"
+  # filterMatchingLabels:
+  #   label1: "label1"
+  #   label2: "label2"
+  filterMatchingAnnotations:
+    cert-manager.io/issuer-group: "cert-manager.io"
+  #   label2: "label2"
+```
+
+To setup SyncSecretAKV controller using Managed Identity for a specific namespace create a Config per namespace with your desired configuration:
+
+```yaml
+apiVersion: api.syncsecretakv.io/v1alpha1
+kind: Config
+metadata:
+  labels:
+    app.kubernetes.io/name: syncsecretakv
+    app.kubernetes.io/managed-by: kustomize
+  name: config-sample
+  namespace: vws
+spec:
+  azKeyVaultURL: "https://<Azure Key Vault name>.vault.azure.net/"
+  allowAzKeyVaultCertificateDeletion: true
+  azKeyvaultClientId: "<Managed Identity Client ID/appId>"
+  # filterMatchingLabels:
+  #   label1: "label1"
+  #   label2: "label2"
+  # filterMatchingAnnotations:
+  #   label1: "label1"
+  #   label2: "label2"
+```
+
+</details>
+
+<details>
+<summary>Service Principal</summary>
+
+To use the Service Principal you will need the output after you have created it.
+
+To setup SyncSecretAKV controller using Service Principal for the entire cluster create a ClusterConfig resource with your desired configuration:
+
+```yaml
+apiVersion: api.syncsecretakv.io/v1alpha1
+kind: ClusterConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: syncsecretakv
+    app.kubernetes.io/managed-by: kustomize
+  name: clusterconfig-sample
+spec:
+  azKeyVaultURL: "https://<Azure Key Vault name>.vault.azure.net/"
+  azKeyvaultClientId: "<Service Principal appId>"
+  azKeyVaultClientSecret: "<Service Principal Secret>"
+  azKeyVaultTenantId: "<Microsoft Entra tenant Id>"
+  allowAzKeyVaultCertificateDeletion: true
+  filterMatchingNamespace:
+    - "vws"
+  # filterMatchingLabels:
+  #   label1: "label1"
+  #   label2: "label2"
+  filterMatchingAnnotations:
+    cert-manager.io/issuer-group: "cert-manager.io"
+  #   label2: "label2"
+```
+
+To setup SyncSecretAKV controller using Service Principal for a specific namespace create a Config per namespace with your desired configuration:
+
+```yaml
+apiVersion: api.syncsecretakv.io/v1alpha1
+kind: Config
+metadata:
+  labels:
+    app.kubernetes.io/name: syncsecretakv
+    app.kubernetes.io/managed-by: kustomize
+  name: config-sample
+  namespace: vws
+spec:
+  azKeyVaultURL: "https://<Azure Key Vault name>.vault.azure.net/"
+  allowAzKeyVaultCertificateDeletion: true
+  azKeyvaultClientId: "<Service Principal appId>"
+  azKeyVaultClientSecret: "<Service Principal Secret>"
+  azKeyVaultTenantId: "<Microsoft Entra tenant Id>"
+  # filterMatchingLabels:
+  #   label1: "label1"
+  #   label2: "label2"
+  # filterMatchingAnnotations:
+  #   label1: "label1"
+  #   label2: "label2"
+```
+
+</details>
+
+Oberve that you can filter the controller to watch for specifics screts based in the namespace, labels or annotations by modifing the relative entries filterMatchingNamespace, filterMatchingLabels and filterMatchingAnnotations.
+
+It also allows you to auto delete and purge certificates from Azure Key Vault, by changing allowAzKeyVaultCertificateDeletion to true or false.
+
+Now for all TLS Secrets created by Cert-manager will be synchrnized to Azure Key Vault allowing you to re-use the Let's Encrypt certificate anywhere in Azure.
