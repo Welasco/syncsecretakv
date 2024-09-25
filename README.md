@@ -35,15 +35,14 @@ helm install \
     --set crds.enabled=true \
     --set enableCertificateOwnerRef=true
 ```
-[!NOTE]
-The command bove is enabling enableCertificateOwnerRef to allow Cert-manager to delete secrets once Ingress rule is removed.
+
+**_NOTE:_** The command bove is enabling enableCertificateOwnerRef to allow Cert-manager to delete secrets once Ingress rule is removed.
 
 Let's Encrypt supports Staging and Production environment, staging is used for testing environments and these certificates are not valid.
 
 Create a ClusterIssuer resource to setup Cert-manager to issue certificates from Let's Encrypt using staging environment:
 
-[!NOTE]
-Let's Encrypt use ACME protocol to issue the certificate and prove domain ownership. It supports DNS01 or HTTP01 protocols. The example bellow is for HTTP01. For DNS01 using Azure DNS please review official [AzureDNS Cert-manager](https://cert-manager.io/docs/configuration/acme/dns01/azuredns/) documentation.
+**_NOTE:_** Let's Encrypt use ACME protocol to issue the certificate and prove domain ownership. It supports DNS01 or HTTP01 protocols. The example bellow is for HTTP01. For DNS01 using Azure DNS please review official [AzureDNS Cert-manager](https://cert-manager.io/docs/configuration/acme/dns01/azuredns/) documentation.
 
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -210,8 +209,7 @@ Choose your preferable authentication method to allow SyncSecretAKV controller t
 
 If you are going to use Workload Identity or Managed Identity in Azure, you have to create a Managed Identity Credential.
 
-[!NOTE]
-Workload Identity requires additional settings to be configured in AKS cluster. Please check [Deploy and configure workload identity on an Azure Kubernetes Service (AKS) cluster](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster)
+**_NOTE:_** Workload Identity requires additional settings to be configured in AKS cluster. Please check [Deploy and configure workload identity on an Azure Kubernetes Service (AKS) cluster](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster)
 
 The command bellow will create a Managed Identity to be used by SyncSecretAKV controller to access Azure Key Vault:
 
