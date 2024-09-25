@@ -63,5 +63,14 @@ cd charts
 helm install syncsecretakv syncsecretakv
 helm install syncsecretakv syncsecretakv --values syncsecretakv/values.yaml
 
+# Add repo and install it
+helm repo add syncsecretakv https://welasco.github.io/syncsecretakv
+helm install syncsecretakv syncsecretakv
+helm install syncsecretakv syncsecretakv/syncsecretakv \
+    --set namespace=syncsecretakv \
+    --set workloadIdentity.userAssignedClientId=xxxxx-xxxx-xxxx-xxxx-xxxxx
+
+helm install syncsecretakv syncsecretakv/syncsecretakv --set namespace=syncsecretakv-system --set workloadIdentity.workloadIdentity=xxxxx-xxxx-xxxx-xxxx-xxxxx
+
 # Uninstall Helm Chart
 helm uninstall syncsecretakv
