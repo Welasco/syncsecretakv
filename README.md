@@ -15,10 +15,10 @@ This Kubernetes Controller is designed to synchronize TLS Secrets created by Cer
 
 ## Getting Started
 
-1. **Install Cert-Manager**: Ensure Cert-Manager is installed and configured in your Kubernetes cluster.
-2. **Configure Azure Key Vault**: Set up your Azure Key Vault and configure the necessary permissions.
-3. **Deploy the Controller**: Deploy this Kubernetes Controller to your cluster.
-4. **Configuring SyncSecretAKV controller**: The controller will automatically synchronize TLS Secrets from Cert-Manager to Azure Key Vault.
+1. [**Install Cert-Manager**](#1-install-cert-manager): Ensure Cert-Manager is installed and configured in your Kubernetes cluster.
+2. [**Configure Azure Key Vault**](#2-configure-azure-key-vault): Set up your Azure Key Vault and configure the necessary permissions.
+3. [**Deploy the Controller**](#3-deploy-the-controller): Deploy this Kubernetes Controller to your cluster.
+4. [**Configuring SyncSecretAKV controller**](#4-configuring-syncsecretakv-controller): The controller will automatically synchronize TLS Secrets from Cert-Manager to Azure Key Vault.
 
 ## 1. **Install Cert-Manager**
 
