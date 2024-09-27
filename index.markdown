@@ -28,6 +28,7 @@ This Kubernetes Controller is designed to synchronize TLS Secrets created by Cer
 2. [**Configure Azure Key Vault**](#2-configure-azure-key-vault): Set up your Azure Key Vault and configure the necessary permissions.
 3. [**Deploy the Controller**](#3-deploy-the-controller): Deploy this Kubernetes Controller to your cluster.
 4. [**Configuring SyncSecretAKV controller**](#4-configuring-syncsecretakv-controller): The controller will automatically synchronize TLS Secrets from Cert-Manager to Azure Key Vault.
+5. [**Filtering**](#5-filtering): Filter which TLS Secrets you would like to sync based in Labels and Annotations, or based in the namespace.
 
 ## 1. **Install Cert-Manager**
 
@@ -364,7 +365,7 @@ SyncSecretAKV controller can be configure to use Workload Identity, Managed Iden
 It supports Cluster wide configuration or Namespace configuration.
 
 
-### Workload Identity
+### 4.1 Workload Identity
 
 To setup SyncSecretAKV controller to use Workload Identity you must install the controller using an additional option with userAssignedClientId to allow the creation of the controller pod with the required tags and annotaions for Workload Identity. Please refer to the step "Install SyncSecretAKV controller for Workload Identity authentication to Azure Key Vault."
 
@@ -441,7 +442,7 @@ spec:
 
 
 
-### Managed Identity
+### 4.2 Managed Identity
 
 To use Managed Identity you have to associate the Managed Identity with all NodePools (VMSS) of AKS Cluster.
 
@@ -512,7 +513,7 @@ spec:
 
 
 
-### Service Principal
+### 4.3 Service Principal
 
 To use the Service Principal you will need the output after you have created it.
 
@@ -567,7 +568,7 @@ spec:
   #   label2: "label2"
 ```
 
-
+## 5. **Filtering**
 
 Oberve that you can filter the controller to watch for specifics screts based in the namespace, labels or annotations by modifing the relative entries filterMatchingNamespace, filterMatchingLabels and filterMatchingAnnotations.
 
