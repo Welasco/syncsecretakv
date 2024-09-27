@@ -30,7 +30,7 @@ repository: Welasco/syncsecretakv
 
 # Build settings
 #theme: minima
-remote_theme: pages-themes/leap-day@v0.2.0
+#remote_theme: pages-themes/leap-day@v0.2.0
 theme: jekyll-theme-leap-day
 #theme: jekyll-theme-midnight
 #remote_theme: jekyll-theme-midnight
