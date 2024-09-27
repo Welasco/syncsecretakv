@@ -22,7 +22,7 @@ title: SyncSecretAKV Kubernetes Controller
 #email: xxx@domain.com
 #description: >- # this means to ignore newlines until "baseurl:"
 # This Kubernetes Controller is designed to synchronize TLS Secrets created by Cert-Manager to Azure Key Vault. Cert-Manager is another Kubernetes controller that issues certificates from Let's Encrypt. The primary purpose of this controller is to enable the reuse of Let's Encrypt TLS certificates across various Azure resources, such as Azure Application Gateway and Azure VMs.
-baseurl: "" # the subpath of your site, e.g. /blog
+#baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 #twitter_username: jekyllrb
 github_username:  Welasco
