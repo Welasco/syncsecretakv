@@ -206,7 +206,7 @@ Choose your preferable authentication method to allow SyncSecretAKV controller t
 
 <details>
 
-<summary>Using Workload Identity or Managed Identity to access Azure Key Vault</summary>
+<summary>2.1 Using Workload Identity or Managed Identity to access Azure Key Vault</summary>
 
 If you are going to use Workload Identity or Managed Identity in Azure, you have to create a Managed Identity Credential.
 
@@ -253,7 +253,7 @@ az role assignment create `
 
 <details>
 
-<summary>Using Service Principal to access Azure Key Vault</summary>
+<summary>2.2 Using Service Principal to access Azure Key Vault</summary>
 
 If running SyncSecretAKV controller in a On-Premises cluster or ARC enabled Kubernestes cluster you must use Service Principal for authentication.
 
