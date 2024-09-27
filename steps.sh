@@ -98,3 +98,9 @@ bundle exec jekyll serve --host=0.0.0.0
 # Install changes
 bundle install
 
+# Build the site
+bundle exec jekyll build
+bundle exec jekyll build --destination docs/
+
+# At the end I setup the GitHub Pages to use the docs folder and added all the necessary files to the folder
+
