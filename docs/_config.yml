@@ -40,7 +40,7 @@ plugins:
   - jekyll-remote-theme
   - github-pages
 
-destination: docs/
+#destination: docs/
 
 # Exclude from processing.
 # The following items will not be processed, by default.
